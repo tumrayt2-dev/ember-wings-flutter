@@ -38,6 +38,9 @@ class _MenuOverlayState extends State<MenuOverlay> {
       widget.game.characterService.setSelectedCharacter(
         GameCharacter.all[index].id,
       );
+      widget.game.analyticsService.logCharacterSelected(
+        GameCharacter.all[index].id.name,
+      );
     });
   }
 
@@ -485,6 +488,7 @@ class _LockedCharacterPopup extends StatelessWidget {
                   // Video izle butonu
                   GestureDetector(
                     onTap: () {
+                      game.analyticsService.logAdShown('rewarded_session_games');
                       game.adService.showRewardedAd(
                         onRewarded: () async {
                           await game.characterService.addSessionGames(character.id);
@@ -649,6 +653,7 @@ class GameOverOverlay extends StatelessWidget {
                         if (game.purchaseService.isAdFree) {
                           game.continueGame();
                         } else {
+                          game.analyticsService.logAdShown('rewarded_continue');
                           game.adService.showRewardedAd(
                             onRewarded: () => game.continueGame(),
                           );

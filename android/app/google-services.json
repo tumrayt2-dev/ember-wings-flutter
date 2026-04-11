@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "772380867229",
+    "project_id": "ember-wings",
+    "storage_bucket": "ember-wings.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:772380867229:android:d4c1c442f13e5c32f37274",
+        "android_client_info": {
+          "package_name": "com.tumray.emberwings"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAgd6BbFjWZyJtyOQohENt2za5XaLZl3bQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

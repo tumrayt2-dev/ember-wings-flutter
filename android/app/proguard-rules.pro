@@ -18,3 +18,9 @@
 
 # Flame Audio / AudioPlayers
 -keep class xyz.luan.audioplayers.** { *; }
+
+# Firebase Crashlytics (doğru stack trace için)
+-keepattributes SourceFile,LineNumberTable
+-keep public class * extends java.lang.Exception
+-keep class com.google.firebase.crashlytics.** { *; }
+-dontwarn com.google.firebase.crashlytics.**

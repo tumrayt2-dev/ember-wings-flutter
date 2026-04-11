@@ -16,6 +16,7 @@ import '../services/ad_service.dart';
 import '../services/score_service.dart';
 import '../services/leaderboard_service.dart';
 import '../services/audio_service.dart';
+import '../services/analytics_service.dart';
 
 enum GameState { menu, playing, paused, gameOver }
 
@@ -30,6 +31,7 @@ class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection 
   final ScoreService scoreService = ScoreService();
   final LeaderboardService leaderboardService = LeaderboardService();
   final AudioService audioService = AudioService();
+  final AnalyticsService analyticsService = AnalyticsService();
 
   GameState state = GameState.menu;
   double _treeSpawnTimer = 0;
@@ -53,6 +55,9 @@ class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection 
     await scoreService.init();
     await leaderboardService.init();
     await audioService.init();
+    analyticsService.init();
+    purchaseService.onPurchased = (productId) =>
+        analyticsService.logPurchase(productId);
 
     camera.viewfinder.visibleGameSize = Vector2(GameConfig.gameWidth, GameConfig.gameHeight);
     camera.viewfinder.position = Vector2(GameConfig.gameWidth / 2, GameConfig.gameHeight / 2);
@@ -182,6 +187,7 @@ class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection 
     if (!purchaseService.isAdFree) {
       _continueCount++;
     }
+    analyticsService.logContinue(scoreDisplay.score);
 
     // Kuşu güvenli pozisyona taşı
     bird.isDead = false;
@@ -214,6 +220,7 @@ class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection 
     audioService.playHit();
     isNewHighScore = await scoreService.submitScore(scoreDisplay.score);
     leaderboardService.submitScore(scoreDisplay.score);
+    analyticsService.logGameOver(scoreDisplay.score, isNewHighScore, _activeCharacterId.name);
     overlays.remove('hud');
     overlays.add('gameOver');
   }
@@ -238,6 +245,8 @@ class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection 
     activeBiome = character.biomeColors;
     activeBiomeName = character.biome;
     biomeFlashTime = biomeFlashDuration;
+
+    analyticsService.logGameStart(_activeCharacterId.name, character.biome);
 
     state = GameState.playing;
     overlays.remove('menu');

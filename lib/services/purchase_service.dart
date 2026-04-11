@@ -15,6 +15,9 @@ class PurchaseService {
   bool _available = false;
   bool _adFree = false;
 
+  /// Başarılı satın alma callback'i — analytics için
+  void Function(String productId)? onPurchased;
+
   PurchaseService(this._characterService);
 
   /// Reklamsız paket satın alınmış mı
@@ -136,6 +139,7 @@ class PurchaseService {
         _characterService.setOwned(id);
       } catch (_) {}
     }
+    onPurchased?.call(purchase.productID);
   }
 
   Future<void> restorePurchases() async {
