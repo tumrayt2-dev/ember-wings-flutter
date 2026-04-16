@@ -12,14 +12,23 @@ class Bird extends PositionComponent with CollisionCallbacks {
   bool isDead = false;
   void Function()? onHit;
 
-  // Cached Paint nesneleri — her frame yeniden oluşturulmaz
-  final Paint _bodyPaint = Paint();
-  final Paint _wingPaint = Paint();
-  final Paint _eyePaint = Paint()..color = GameConfig.birdEye;
+  // Cached Paint nesneleri
+  final Paint _bodyPaint     = Paint();
+  final Paint _wingPaint     = Paint();
+  final Paint _eyePaint      = Paint()..color = GameConfig.birdEye;
   final Paint _eyeWhitePaint = Paint()..color = const Color(0xFFFFFFFF);
-  final Paint _beakPaint = Paint();
-  final Path _wingPath = Path();
-  final Path _beakPath = Path();
+  final Paint _beakPaint     = Paint();
+  final Path  _wingPath      = Path();
+  final Path  _beakPath      = Path();
+
+  // Pre-computed render değerleri — onLoad'da hesaplanır
+  late final Offset _center;
+  late final double _radius;
+  late final Offset _eyeOffset;
+  late final Offset _eyeWhiteOffset;
+  late final double _wingMoveX, _wingMoveY;
+  late final double _wingMidX;
+  late final double _wingEndX, _wingEndY;
 
   void updateColors(Color body, Color wing, Color beak) {
     _bodyPaint.color = body;
@@ -40,6 +49,29 @@ class Bird extends PositionComponent with CollisionCallbacks {
   @override
   Future<void> onLoad() async {
     add(CircleHitbox());
+
+    final cx = size.x / 2;
+    final cy = size.y / 2;
+    final r  = size.x / 2;
+
+    _center         = Offset(cx, cy);
+    _radius         = r;
+    _eyeOffset      = Offset(cx + r * 0.3,  cy - r * 0.2);
+    _eyeWhiteOffset = Offset(cx + r * 0.3,  cy - r * 0.25);
+
+    // Wing path sabit noktaları
+    _wingMoveX = cx - 2;
+    _wingMoveY = cy;
+    _wingMidX  = cx - r - 6;
+    _wingEndX  = cx - r + 2;
+    _wingEndY  = cy + 8;
+
+    // Gaga path tamamen sabit — bir kez çizilir
+    _beakPath
+      ..moveTo(cx + r,      cy - 2)
+      ..lineTo(cx + r + 10, cy + 2)
+      ..lineTo(cx + r,      cy + 4)
+      ..close();
   }
 
   @override
@@ -60,8 +92,8 @@ class Bird extends PositionComponent with CollisionCallbacks {
   void reset() {
     position = Vector2(GameConfig.birdX, GameConfig.gameHeight / 2);
     velocity = 0;
-    angle = 0;
-    isDead = false;
+    angle    = 0;
+    isDead   = false;
     isActive = true;
   }
 
@@ -72,63 +104,42 @@ class Bird extends PositionComponent with CollisionCallbacks {
     super.update(dt);
     if (isDead || !isActive) return;
 
-    // Yerçekimi
     velocity += GameConfig.gravity * dt;
-    velocity = velocity.clamp(-GameConfig.maxVelocity, GameConfig.maxVelocity);
+    velocity  = velocity.clamp(-GameConfig.maxVelocity, GameConfig.maxVelocity);
     position.y += velocity * dt;
 
-    // Kuşun açısı (hıza göre eğilme)
     angle = (velocity / GameConfig.maxVelocity) * 0.8;
 
-    // Kanat animasyonu
     _wingAngle += dt * 12;
     if (_wingAngle > pi * 2) _wingAngle -= pi * 2;
 
-    // Tavan kontrolü
     if (position.y < GameConfig.birdSize / 2) {
       position.y = GameConfig.birdSize / 2;
-      velocity = 0;
+      velocity   = 0;
     }
   }
 
   @override
   void render(Canvas canvas) {
     super.render(canvas);
-    final center = Offset(size.x / 2, size.y / 2);
-    final radius = size.x / 2;
 
     // Gövde
-    canvas.drawCircle(center, radius, _bodyPaint);
+    canvas.drawCircle(_center, _radius, _bodyPaint);
 
-    // Kanat
+    // Kanat — sadece y offset her frame değişir
     final wingOffset = sin(_wingAngle) * 4;
     _wingPath.reset();
-    _wingPath.moveTo(center.dx - 2, center.dy);
-    _wingPath.lineTo(center.dx - radius - 6, center.dy + wingOffset);
-    _wingPath.lineTo(center.dx - radius + 2, center.dy + 8);
+    _wingPath.moveTo(_wingMoveX, _wingMoveY);
+    _wingPath.lineTo(_wingMidX,  _wingMoveY + wingOffset);
+    _wingPath.lineTo(_wingEndX,  _wingEndY);
     _wingPath.close();
     canvas.drawPath(_wingPath, _wingPaint);
 
     // Göz
-    canvas.drawCircle(
-      Offset(center.dx + radius * 0.3, center.dy - radius * 0.2),
-      3,
-      _eyePaint,
-    );
+    canvas.drawCircle(_eyeOffset,      3,   _eyePaint);
+    canvas.drawCircle(_eyeWhiteOffset, 1.2, _eyeWhitePaint);
 
-    // Göz beyazı
-    canvas.drawCircle(
-      Offset(center.dx + radius * 0.3, center.dy - radius * 0.25),
-      1.2,
-      _eyeWhitePaint,
-    );
-
-    // Gaga
-    _beakPath.reset();
-    _beakPath.moveTo(center.dx + radius, center.dy - 2);
-    _beakPath.lineTo(center.dx + radius + 10, center.dy + 2);
-    _beakPath.lineTo(center.dx + radius, center.dy + 4);
-    _beakPath.close();
+    // Gaga (pre-computed path)
     canvas.drawPath(_beakPath, _beakPaint);
   }
 }
