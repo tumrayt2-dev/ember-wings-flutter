@@ -5,9 +5,39 @@ import 'package:flutter/painting.dart';
 import '../config/game_config.dart';
 import '../game/ember_wings_game.dart';
 
+/// Deterministik zemin deseni için önceden hesaplanmış veriler.
+class _DirtTile {
+  final double offsetX;
+  final double width;
+  _DirtTile(this.offsetX, this.width);
+}
+
+class _EmberDot {
+  final double offsetX;
+  final double offsetY;
+  final double radius;
+  _EmberDot(this.offsetX, this.offsetY, this.radius);
+}
+
 class Ground extends PositionComponent with CollisionCallbacks, HasGameReference<EmberWingsGame> {
   double _scrollOffset = 0;
-  final Random _random = Random(42); // sabit seed = tutarlı desen
+
+  // Cached Paint nesneleri
+  final Paint _groundPaint = Paint();
+  final Paint _ashPaint = Paint()..strokeWidth = 3;
+  final Paint _darkPaint = Paint();
+  final Paint _emberPaint = Paint();
+
+  // Cached Offset (sabit)
+  static const Offset _lineStart = Offset(0, 2);
+
+  // Önceden hesaplanmış deterministik desenler
+  late final List<List<_DirtTile>> _dirtRows;
+  late final List<_EmberDot> _emberDots;
+
+  // Biyom renk cache — sadece biyom değişince güncellenir
+  Color? _cachedAshColor;
+  Color? _cachedEmberColor;
 
   Ground() : super(
     position: Vector2(0, GameConfig.gameHeight - GameConfig.groundHeight),
@@ -18,6 +48,35 @@ class Ground extends PositionComponent with CollisionCallbacks, HasGameReference
   @override
   Future<void> onLoad() async {
     add(RectangleHitbox());
+    _precomputePatterns();
+  }
+
+  void _precomputePatterns() {
+    // Toprak deseni — 40px tile başına satırlar
+    // Ekranın 2 katı genişliğinde tile üret (scroll için)
+    final tileCount = (size.x / 40).ceil() + 2;
+    final rng = Random(42);
+    final rowCount = ((size.y - 10) / 15).ceil();
+
+    _dirtRows = List.generate(rowCount, (_) {
+      return List.generate(tileCount, (_) {
+        return _DirtTile(
+          rng.nextDouble() * 10,
+          12 + rng.nextDouble() * 8,
+        );
+      });
+    });
+
+    // Kor noktaları
+    final emberCount = (size.x / 60).ceil() + 2;
+    final rng2 = Random(123);
+    _emberDots = List.generate(emberCount, (_) {
+      return _EmberDot(
+        rng2.nextDouble() * 30,
+        6 + rng2.nextDouble() * 8,
+        1.5 + rng2.nextDouble() * 2,
+      );
+    });
   }
 
   @override
@@ -34,37 +93,44 @@ class Ground extends PositionComponent with CollisionCallbacks, HasGameReference
     final biome = game.activeBiome;
 
     // Ana zemin
-    final groundPaint = Paint()..color = biome.groundColor;
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.x, size.y), groundPaint);
+    _groundPaint.color = biome.groundColor;
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.x, size.y), _groundPaint);
 
-    // Üst kenar - biyoma göre vurgu çizgisi
-    final ashPaint = Paint()
-      ..color = biome.treeEmber.withValues(alpha: 0.8)
-      ..strokeWidth = 3;
-    canvas.drawLine(Offset(0, 2), Offset(size.x, 2), ashPaint);
+    // Üst kenar - biyom renk cache
+    final ashColor = biome.treeEmber;
+    if (_cachedAshColor != ashColor) {
+      _cachedAshColor = ashColor;
+      _ashPaint.color = Color.fromARGB(204, ashColor.r.toInt(), ashColor.g.toInt(), ashColor.b.toInt());
+      _cachedEmberColor = Color.fromARGB(102, ashColor.r.toInt(), ashColor.g.toInt(), ashColor.b.toInt());
+      _emberPaint.color = _cachedEmberColor!;
+    }
+    canvas.drawLine(_lineStart, Offset(size.x, 2), _ashPaint);
 
-    // Koyu toprak deseni
-    final darkPaint = Paint()..color = biome.groundDark;
-    _random.nextInt(1); // seed reset workaround
-    final rng = Random(42);
-    for (double x = -_scrollOffset; x < size.x + 40; x += 40) {
-      for (double y = 10; y < size.y; y += 15) {
-        final offset = rng.nextDouble() * 10;
+    // Koyu toprak deseni — önceden hesaplanmış
+    _darkPaint.color = biome.groundDark;
+    for (int row = 0; row < _dirtRows.length; row++) {
+      final y = 10.0 + row * 15;
+      final tiles = _dirtRows[row];
+      int tileIdx = 0;
+      for (double x = -_scrollOffset; x < size.x + 40; x += 40) {
+        if (tileIdx >= tiles.length) break;
+        final tile = tiles[tileIdx++];
         canvas.drawRect(
-          Rect.fromLTWH(x + offset, y, 12 + rng.nextDouble() * 8, 3),
-          darkPaint,
+          Rect.fromLTWH(x + tile.offsetX, y, tile.width, 3),
+          _darkPaint,
         );
       }
     }
 
-    // Kor parçaları (üst kısımda)
-    final emberPaint = Paint()..color = biome.treeEmber.withValues(alpha: 0.4);
-    final rng2 = Random(123);
+    // Kor parçaları
+    int dotIdx = 0;
     for (double x = -_scrollOffset; x < size.x + 40; x += 60) {
+      if (dotIdx >= _emberDots.length) break;
+      final dot = _emberDots[dotIdx++];
       canvas.drawCircle(
-        Offset(x + rng2.nextDouble() * 30, 6 + rng2.nextDouble() * 8),
-        1.5 + rng2.nextDouble() * 2,
-        emberPaint,
+        Offset(x + dot.offsetX, dot.offsetY),
+        dot.radius,
+        _emberPaint,
       );
     }
   }

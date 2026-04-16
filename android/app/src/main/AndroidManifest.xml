@@ -31,10 +31,14 @@
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
-        <!-- AdMob App ID (test ID — yayın öncesi gerçek ID ile değiştirilecek) -->
+        <!-- AdMob App ID (production — debug build'lerde kod tarafı test ad unit kullanır) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="ca-app-pub-8438407620610676~6627756207" />
+        <!-- Play Games Services project ID -->
+        <meta-data
+            android:name="com.google.android.gms.games.APP_ID"
+            android:value="@string/games_app_id" />
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

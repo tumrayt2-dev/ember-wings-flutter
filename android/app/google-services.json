@@ -12,7 +12,16 @@
           "package_name": "com.tumray.emberwings"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "772380867229-c5atatu2fmofpvvgnu8q58lslr4r9159.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tumray.emberwings",
+            "certificate_hash": "30ae730e71b7051bf797c7595845fa5a9895ef8b"
+          }
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAgd6BbFjWZyJtyOQohENt2za5XaLZl3bQ"

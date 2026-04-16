@@ -4,14 +4,38 @@ import 'package:flame/components.dart';
 import 'package:flutter/painting.dart';
 import '../config/game_config.dart';
 import '../game/ember_wings_game.dart';
+import '../models/game_character.dart';
 
 class TreeObstacle extends PositionComponent with CollisionCallbacks, HasGameReference<EmberWingsGame> {
   final bool isTop;
   final double treeHeight;
   final int variant;
-  final Random _random = Random();
   late List<_EmberSpot> _embers;
   late List<_BarkLine> _barkLines;
+
+  // Cached Paint nesneleri — her frame yeniden oluşturulmaz
+  final Paint _trunkPaint = Paint();
+  final Paint _barkPaint = Paint();
+  final Paint _emberPaint = Paint();
+  final Paint _glowPaint = Paint();
+  final Paint _tipPaint = Paint();
+  // Gece biyomu blur paint — ayrı tutulur, maskFilter sabit
+  final Paint _nightGlowPaint = Paint()
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+  // Kenar glow paint — blur sabit
+  final Paint _edgeGlowPaint = Paint()
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+
+  // Cached Path nesneleri (ice/night biyomları)
+  final Path _shapePath = Path();
+
+  // Cached Rect (glow kenar, trunk rect)
+  late final Rect _glowRectTop;
+  late final Rect _glowRectBottom;
+  late final Rect _trunkRect;
+
+  // Ember alpha değerleri — constructor'da hesaplanır, render'da kullanılır
+  late final List<double> _emberAlphas;
 
   TreeObstacle({
     required this.isTop,
@@ -22,27 +46,57 @@ class TreeObstacle extends PositionComponent with CollisionCallbacks, HasGameRef
     position: Vector2(x, isTop ? 0 : GameConfig.gameHeight - GameConfig.groundHeight - treeHeight),
     size: Vector2(GameConfig.treeWidth, treeHeight),
   ) {
+    final rng = Random();
     _embers = List.generate(
       (treeHeight / 30).floor(),
       (_) => _EmberSpot(
-        x: _random.nextDouble() * GameConfig.treeWidth,
-        y: _random.nextDouble() * treeHeight,
-        radius: 2 + _random.nextDouble() * 4,
+        x: rng.nextDouble() * GameConfig.treeWidth,
+        y: rng.nextDouble() * treeHeight,
+        radius: 2 + rng.nextDouble() * 4,
       ),
     );
     _barkLines = List.generate(
       (treeHeight / 20).floor(),
       (_) => _BarkLine(
-        y: _random.nextDouble() * treeHeight,
-        width: 10 + _random.nextDouble() * 20,
-        x: _random.nextDouble() * (GameConfig.treeWidth - 20),
+        y: rng.nextDouble() * treeHeight,
+        width: 10 + rng.nextDouble() * 20,
+        x: rng.nextDouble() * (GameConfig.treeWidth - 20),
       ),
     );
+
+    // Ember alpha değerlerini önceden hesapla
+    _emberAlphas = List.generate(
+      _embers.length,
+      (_) => 0.3 + rng.nextDouble() * 0.5,
+    );
+
+    // Sabit rect'leri önceden hesapla
+    _glowRectTop = Rect.fromLTWH(0, treeHeight - 8, GameConfig.treeWidth, 8);
+    _glowRectBottom = const Rect.fromLTWH(0, 0, GameConfig.treeWidth, 8);
+    _trunkRect = Rect.fromLTWH(0, 0, GameConfig.treeWidth, treeHeight);
   }
 
   @override
   Future<void> onLoad() async {
-    add(RectangleHitbox());
+    if (game.activeBiomeName == 'ice') {
+      add(PolygonHitbox(_iceVertices()));
+    } else {
+      add(RectangleHitbox());
+    }
+  }
+
+  List<Vector2> _iceVertices() {
+    final w = size.x;
+    final h = size.y;
+    if (isTop) {
+      final rRight = variant == 0 ? 0.55 : 0.70;
+      final rLeft  = variant == 0 ? 0.45 : 0.30;
+      return [Vector2(0, 0), Vector2(w, 0), Vector2(w * rRight, h), Vector2(w * rLeft, h)];
+    } else {
+      final rRight = variant == 0 ? 0.65 : 0.80;
+      final rLeft  = variant == 0 ? 0.35 : 0.20;
+      return [Vector2(w * rLeft, 0), Vector2(w * rRight, 0), Vector2(w, h), Vector2(0, h)];
+    }
   }
 
   @override
@@ -58,10 +112,32 @@ class TreeObstacle extends PositionComponent with CollisionCallbacks, HasGameRef
     }
   }
 
+  // Biyom renk cache — biyom değişmedikçe Color nesneleri yeniden oluşturulmaz
+  Color? _lastBiomeTrunk;
+  Color? _cachedBarkColor;
+  Color? _cachedGlowColor015;
+  Color? _cachedGlowColor050;
+  Color? _cachedEmberColor060;
+
+  void _updateBiomeCache(BiomeColors biome) {
+    if (_lastBiomeTrunk == biome.treeTrunk) return;
+    _lastBiomeTrunk = biome.treeTrunk;
+    _cachedBarkColor = Color.lerp(biome.treeTrunk, const Color(0xFF000000), 0.35)!;
+
+    final ember = biome.treeEmber;
+    final r = ember.r.toInt();
+    final g = ember.g.toInt();
+    final b = ember.b.toInt();
+    _cachedGlowColor015 = Color.fromARGB(38, r, g, b);
+    _cachedGlowColor050 = Color.fromARGB(128, r, g, b);
+    _cachedEmberColor060 = Color.fromARGB(153, r, g, b);
+  }
+
   @override
   void render(Canvas canvas) {
     super.render(canvas);
     final biome = game.activeBiome;
+    _updateBiomeCache(biome);
 
     switch (game.activeBiomeName) {
       case 'water':
@@ -79,120 +155,108 @@ class TreeObstacle extends PositionComponent with CollisionCallbacks, HasGameRef
     }
 
     // Boşluğa bakan kenar glow — tüm biyomlarda ortak
-    final glowPaint = Paint()
-      ..color = biome.treeEmber.withValues(alpha: 0.15)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-    if (isTop) {
-      canvas.drawRect(Rect.fromLTWH(0, size.y - 8, size.x, 8), glowPaint);
-    } else {
-      canvas.drawRect(Rect.fromLTWH(0, 0, size.x, 8), glowPaint);
-    }
+    _edgeGlowPaint.color = _cachedGlowColor015!;
+    canvas.drawRect(isTop ? _glowRectTop : _glowRectBottom, _edgeGlowPaint);
   }
 
   // Ateş biyomu: yanık ağaç gövdesi + kor noktaları
-  void _renderFire(Canvas canvas, biome) {
-    final rect = Rect.fromLTWH(0, 0, size.x, size.y);
-    canvas.drawRect(rect, Paint()..color = biome.treeTrunk);
+  void _renderFire(Canvas canvas, BiomeColors biome) {
+    _trunkPaint.color = biome.treeTrunk;
+    canvas.drawRect(_trunkRect, _trunkPaint);
 
-    // Varyasyon: variant 1 = daha fazla çatlak
-    final barkPaint = Paint()
-      ..color = Color.lerp(biome.treeTrunk, const Color(0xFF000000), 0.35)!
+    _barkPaint
+      ..color = _cachedBarkColor!
       ..strokeWidth = variant == 1 ? 3 : 2;
     for (final line in _barkLines) {
       canvas.drawLine(
         Offset(line.x, line.y),
         Offset(line.x + line.width, line.y),
-        barkPaint,
+        _barkPaint,
       );
     }
-    for (final ember in _embers) {
-      final emberPaint = Paint()
-        ..color = biome.treeEmber.withValues(alpha: 0.3 + _random.nextDouble() * 0.5);
-      canvas.drawCircle(Offset(ember.x, ember.y), ember.radius, emberPaint);
+
+    final ember = biome.treeEmber;
+    final r = ember.r.toInt();
+    final g = ember.g.toInt();
+    final b = ember.b.toInt();
+    for (int i = 0; i < _embers.length; i++) {
+      final e = _embers[i];
+      _emberPaint.color = Color.fromARGB((_emberAlphas[i] * 255).toInt(), r, g, b);
+      canvas.drawCircle(Offset(e.x, e.y), e.radius, _emberPaint);
     }
   }
 
   // Su biyomu: kamış demeti (dikey ince şeritler)
-  void _renderWater(Canvas canvas, biome) {
+  void _renderWater(Canvas canvas, BiomeColors biome) {
     final reedCount = variant == 0 ? 4 : 5;
     final reedWidth = size.x / (reedCount + 1);
-    final basePaint = Paint()..color = biome.treeTrunk;
-    final tipPaint = Paint()..color = biome.treeEmber;
+    _trunkPaint.color = biome.treeTrunk;
+    _tipPaint.color = biome.treeEmber;
 
     for (int i = 0; i < reedCount; i++) {
       final cx = reedWidth * (i + 1);
       final sway = (variant == 1 ? 3.0 : 1.5) * sin(i.toDouble());
-      final reedRect = Rect.fromLTWH(
-        cx - reedWidth * 0.3 + sway,
-        0,
-        reedWidth * 0.6,
-        size.y,
+      canvas.drawRect(
+        Rect.fromLTWH(cx - reedWidth * 0.3 + sway, 0, reedWidth * 0.6, size.y),
+        _trunkPaint,
       );
-      canvas.drawRect(reedRect, basePaint);
-      // Tepe/dip parıltısı
       final tipY = isTop ? size.y - 10 : 0.0;
       canvas.drawCircle(
         Offset(cx + sway, tipY + 5),
         reedWidth * 0.35,
-        tipPaint,
+        _tipPaint,
       );
     }
   }
 
   // Buz biyomu: sarkıt/buz sütunu
-  void _renderIce(Canvas canvas, biome) {
-    final trunkPaint = Paint()..color = biome.treeTrunk;
-    final glowPaint = Paint()..color = biome.treeEmber.withValues(alpha: 0.5);
+  void _renderIce(Canvas canvas, BiomeColors biome) {
+    _trunkPaint.color = biome.treeTrunk;
+    _glowPaint.color = _cachedGlowColor050!;
 
+    _shapePath.reset();
     if (isTop) {
-      // Tavandan aşağı sarkan sarkıt: üst geniş, alt sivri
-      final path = Path()
-        ..moveTo(0, 0)
-        ..lineTo(size.x, 0)
-        ..lineTo(size.x * (variant == 0 ? 0.55 : 0.7), size.y)
-        ..lineTo(size.x * (variant == 0 ? 0.45 : 0.3), size.y)
-        ..close();
-      canvas.drawPath(path, trunkPaint);
-      // Parıltı şeridi
+      _shapePath.moveTo(0, 0);
+      _shapePath.lineTo(size.x, 0);
+      _shapePath.lineTo(size.x * (variant == 0 ? 0.55 : 0.7), size.y);
+      _shapePath.lineTo(size.x * (variant == 0 ? 0.45 : 0.3), size.y);
+      _shapePath.close();
+      canvas.drawPath(_shapePath, _trunkPaint);
       canvas.drawRect(
         Rect.fromLTWH(size.x * 0.35, 0, size.x * 0.1, size.y * 0.7),
-        glowPaint,
+        _glowPaint,
       );
     } else {
-      // Yerden yükselen sütun: alt geniş, üst sivri
-      final path = Path()
-        ..moveTo(0, size.y)
-        ..lineTo(size.x, size.y)
-        ..lineTo(size.x * (variant == 0 ? 0.65 : 0.8), 0)
-        ..lineTo(size.x * (variant == 0 ? 0.35 : 0.2), 0)
-        ..close();
-      canvas.drawPath(path, trunkPaint);
+      _shapePath.moveTo(0, size.y);
+      _shapePath.lineTo(size.x, size.y);
+      _shapePath.lineTo(size.x * (variant == 0 ? 0.65 : 0.8), 0);
+      _shapePath.lineTo(size.x * (variant == 0 ? 0.35 : 0.2), 0);
+      _shapePath.close();
+      canvas.drawPath(_shapePath, _trunkPaint);
       canvas.drawRect(
         Rect.fromLTWH(size.x * 0.45, size.y * 0.3, size.x * 0.1, size.y * 0.7),
-        glowPaint,
+        _glowPaint,
       );
     }
   }
 
   // Gece biyomu: eğri gölge sütun + mor parıltı noktaları
-  void _renderNight(Canvas canvas, biome) {
-    final trunkPaint = Paint()..color = biome.treeTrunk;
-    // Hafif kavisli sütun (variant'a göre yön)
+  void _renderNight(Canvas canvas, BiomeColors biome) {
+    _trunkPaint.color = biome.treeTrunk;
     final lean = variant == 0 ? 4.0 : -4.0;
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.x, 0)
-      ..lineTo(size.x + lean, size.y)
-      ..lineTo(lean, size.y)
-      ..close();
-    canvas.drawPath(path, trunkPaint);
+
+    _shapePath.reset();
+    _shapePath.moveTo(0, 0);
+    _shapePath.lineTo(size.x, 0);
+    _shapePath.lineTo(size.x + lean, size.y);
+    _shapePath.lineTo(lean, size.y);
+    _shapePath.close();
+    canvas.drawPath(_shapePath, _trunkPaint);
 
     // Mor göz/parıltı noktaları
+    _nightGlowPaint.color = _cachedEmberColor060!;
     for (final ember in _embers) {
-      final glowPaint = Paint()
-        ..color = biome.treeEmber.withValues(alpha: 0.6)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-      canvas.drawCircle(Offset(ember.x, ember.y), ember.radius * 0.8, glowPaint);
+      canvas.drawCircle(Offset(ember.x, ember.y), ember.radius * 0.8, _nightGlowPaint);
     }
   }
 }

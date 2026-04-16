@@ -9,6 +9,19 @@ class Background extends PositionComponent with HasGameReference<EmberWingsGame>
   late List<_Particle> _particles;
   late List<_SmokeCloud> _smokeClouds;
 
+  // Cached Paint nesneleri
+  final Paint _skyPaint = Paint();
+  final Paint _smokePaint = Paint();
+  final Paint _particlePaint = Paint();
+  final Paint _flashPaint = Paint();
+
+  // Gradient cache — sadece biyom değişince yeniden oluşturulur
+  Color? _cachedSkyTop;
+  late Rect _fullRect;
+
+  // Smoke renk cache
+  Color? _cachedSmokeColor;
+
   Background() : super(
     size: Vector2(GameConfig.gameWidth, GameConfig.gameHeight),
     priority: -10,
@@ -16,6 +29,8 @@ class Background extends PositionComponent with HasGameReference<EmberWingsGame>
 
   @override
   Future<void> onLoad() async {
+    _fullRect = Rect.fromLTWH(0, 0, size.x, size.y);
+
     _particles = List.generate(20, (_) => _Particle(
       x: _random.nextDouble() * GameConfig.gameWidth,
       y: _random.nextDouble() * GameConfig.gameHeight,
@@ -63,44 +78,52 @@ class Background extends PositionComponent with HasGameReference<EmberWingsGame>
     super.render(canvas);
     final biome = game.activeBiome;
 
-    // Biyoma göre gradyan gökyüzü
-    final skyGradient = Paint()
-      ..shader = LinearGradient(
+    // Gradient shader — sadece biyom değişince yeniden oluştur
+    if (_cachedSkyTop != biome.skyTop) {
+      _cachedSkyTop = biome.skyTop;
+      _skyPaint.shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [biome.skyTop, biome.skyBottom, biome.skyAccent],
         stops: const [0.0, 0.6, 1.0],
-      ).createShader(Rect.fromLTWH(0, 0, size.x, size.y));
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.x, size.y), skyGradient);
+      ).createShader(_fullRect);
 
-    // Sis/bulut (biyoma göre ton)
+      // Smoke renk de biyomla değişir
+      final sa = biome.skyAccent;
+      _cachedSmokeColor = Color.fromARGB(64, sa.r.toInt(), sa.g.toInt(), sa.b.toInt());
+      _smokePaint.color = _cachedSmokeColor!;
+    }
+
+    canvas.drawRect(_fullRect, _skyPaint);
+
+    // Sis/bulut
     for (final cloud in _smokeClouds) {
-      final smokePaint = Paint()
-        ..color = biome.skyAccent.withValues(alpha: 0.25);
       canvas.drawCircle(
         Offset(cloud.x, cloud.y),
         cloud.radius,
-        smokePaint,
+        _smokePaint,
       );
     }
 
-    // Parçacıklar (biyoma göre: kıvılcım, su damlası, kar, yıldız)
+    // Parçacıklar
+    final pc = biome.particleColor;
+    final pr = pc.r.toInt();
+    final pg = pc.g.toInt();
+    final pb = pc.b.toInt();
     for (final p in _particles) {
-      final particlePaint = Paint()
-        ..color = biome.particleColor.withValues(alpha: p.alpha);
+      _particlePaint.color = Color.fromARGB((p.alpha * 255).toInt(), pr, pg, pb);
       canvas.drawCircle(
         Offset(p.x, p.y),
         p.size,
-        particlePaint,
+        _particlePaint,
       );
     }
 
-    // Biyom geçiş flash'ı — beyaz overlay fade out
+    // Biyom geçiş flash'ı
     if (game.biomeFlashTime > 0) {
       final t = game.biomeFlashTime / EmberWingsGame.biomeFlashDuration;
-      final flashPaint = Paint()
-        ..color = const Color(0xFFFFFFFF).withValues(alpha: t * 0.7);
-      canvas.drawRect(Rect.fromLTWH(0, 0, size.x, size.y), flashPaint);
+      _flashPaint.color = Color.fromARGB((t * 179).toInt(), 255, 255, 255);
+      canvas.drawRect(_fullRect, _flashPaint);
     }
   }
 }

@@ -11,21 +11,31 @@ class Bird extends PositionComponent with CollisionCallbacks {
   double _wingAngle = 0;
   bool isDead = false;
   void Function()? onHit;
-  Color _bodyColor = GameConfig.birdBody;
-  Color _wingColor = GameConfig.birdWing;
-  Color _beakColor = const Color(0xFFFF6600);
+
+  // Cached Paint nesneleri — her frame yeniden oluşturulmaz
+  final Paint _bodyPaint = Paint();
+  final Paint _wingPaint = Paint();
+  final Paint _eyePaint = Paint()..color = GameConfig.birdEye;
+  final Paint _eyeWhitePaint = Paint()..color = const Color(0xFFFFFFFF);
+  final Paint _beakPaint = Paint();
+  final Path _wingPath = Path();
+  final Path _beakPath = Path();
 
   void updateColors(Color body, Color wing, Color beak) {
-    _bodyColor = body;
-    _wingColor = wing;
-    _beakColor = beak;
+    _bodyPaint.color = body;
+    _wingPaint.color = wing;
+    _beakPaint.color = beak;
   }
 
   Bird() : super(
     position: Vector2(GameConfig.birdX, GameConfig.gameHeight / 2),
     size: Vector2(GameConfig.birdSize, GameConfig.birdSize),
     anchor: Anchor.center,
-  );
+  ) {
+    _bodyPaint.color = GameConfig.birdBody;
+    _wingPaint.color = GameConfig.birdWing;
+    _beakPaint.color = const Color(0xFFFF6600);
+  }
 
   @override
   Future<void> onLoad() async {
@@ -88,42 +98,37 @@ class Bird extends PositionComponent with CollisionCallbacks {
     final radius = size.x / 2;
 
     // Gövde
-    final bodyPaint = Paint()..color = _bodyColor;
-    canvas.drawCircle(center, radius, bodyPaint);
+    canvas.drawCircle(center, radius, _bodyPaint);
 
     // Kanat
-    final wingPaint = Paint()..color = _wingColor;
     final wingOffset = sin(_wingAngle) * 4;
-    final wingPath = Path()
-      ..moveTo(center.dx - 2, center.dy)
-      ..lineTo(center.dx - radius - 6, center.dy + wingOffset)
-      ..lineTo(center.dx - radius + 2, center.dy + 8)
-      ..close();
-    canvas.drawPath(wingPath, wingPaint);
+    _wingPath.reset();
+    _wingPath.moveTo(center.dx - 2, center.dy);
+    _wingPath.lineTo(center.dx - radius - 6, center.dy + wingOffset);
+    _wingPath.lineTo(center.dx - radius + 2, center.dy + 8);
+    _wingPath.close();
+    canvas.drawPath(_wingPath, _wingPaint);
 
     // Göz
-    final eyePaint = Paint()..color = GameConfig.birdEye;
     canvas.drawCircle(
       Offset(center.dx + radius * 0.3, center.dy - radius * 0.2),
       3,
-      eyePaint,
+      _eyePaint,
     );
 
     // Göz beyazı
-    final eyeWhitePaint = Paint()..color = const Color(0xFFFFFFFF);
     canvas.drawCircle(
       Offset(center.dx + radius * 0.3, center.dy - radius * 0.25),
       1.2,
-      eyeWhitePaint,
+      _eyeWhitePaint,
     );
 
     // Gaga
-    final beakPaint = Paint()..color = _beakColor;
-    final beakPath = Path()
-      ..moveTo(center.dx + radius, center.dy - 2)
-      ..lineTo(center.dx + radius + 10, center.dy + 2)
-      ..lineTo(center.dx + radius, center.dy + 4)
-      ..close();
-    canvas.drawPath(beakPath, beakPaint);
+    _beakPath.reset();
+    _beakPath.moveTo(center.dx + radius, center.dy - 2);
+    _beakPath.lineTo(center.dx + radius + 10, center.dy + 2);
+    _beakPath.lineTo(center.dx + radius, center.dy + 4);
+    _beakPath.close();
+    canvas.drawPath(_beakPath, _beakPaint);
   }
 }

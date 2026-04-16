@@ -1,20 +1,19 @@
+import 'package:flutter/foundation.dart';
+
 class MonetizationConfig {
-  // Seans sistemi
-  static const int gamesPerVideoReward = 3;
-  static const int freeTrialGamesPerCharacter = 2;
+  // Canlanma (oyun içi devam) — herkes için sabit
+  static const int maxContinuesPerGame = 2;
 
-  // Google Play product ID'leri
-  static const String productIdPrefix = 'character_';
-  static const String productIdBundle = 'character_bundle_all';
+  // ─── AdMob ID'leri ────────────────────────────────────────────
+  // Debug modunda Google'ın resmi test ID'leri kullanılır.
+  // Release modunda gerçek ID'ler devreye girer.
 
-  // Reklamsız paket
-  static const String productIdAdFree = 'ad_free_pack';
+  static const String _prodRewardedAdUnitId = 'ca-app-pub-8438407620610676/6198788478';
+  static const String _prodBannerAdUnitId   = 'ca-app-pub-8438407620610676/4888272893';
 
-  // İndirim oranı (popup'ta gösterim için)
-  static const int bundleDiscountPercent = 20;
+  static const String _testRewardedAdUnitId = 'ca-app-pub-3940256099942544/5224354917';
+  static const String _testBannerAdUnitId   = 'ca-app-pub-3940256099942544/6300978111';
 
-  // AdMob ID'leri (test ID'leri — yayınlamadan önce gerçek ID ile değiştirilecek)
-  // App ID: AndroidManifest.xml'de de güncellenmeli
-  static const String adMobAppId = 'ca-app-pub-3940256099942544~3347511713'; // test App ID
-  static const String rewardedAdUnitId = 'ca-app-pub-3940256099942544/5224354917'; // test Ad Unit ID
+  static const String rewardedAdUnitId = kReleaseMode ? _prodRewardedAdUnitId : _testRewardedAdUnitId;
+  static const String bannerAdUnitId   = kReleaseMode ? _prodBannerAdUnitId   : _testBannerAdUnitId;
 }

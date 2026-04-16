@@ -6,8 +6,8 @@ class LeaderboardService {
 
   bool get isSignedIn => _isSignedIn;
 
-  // Google Play Console'da oluşturulacak leaderboard ID'si
-  static const String leaderboardId = 'CgkI_LEADERBOARD_ID'; // TODO: Gerçek ID ile değiştir
+  // Google Play Console — "En Yüksek Skor" liderlik tablosu
+  static const String leaderboardId = 'CgkInfXyq70WEAIQAQ';
 
   Future<void> init() async {
     if (kIsWeb) return;

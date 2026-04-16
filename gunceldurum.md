@@ -1,231 +1,168 @@
-# Ember Wings - Proje Guncel Durum Raporu
+# Ember Wings — Güncel Durum Raporu
 
-**Tarih:** 2026-04-10
-**Platform:** Android (arm64)
-**Framework:** Flutter 3.41.6 + Flame 1.36.0
-**Tema:** Yanan ormandan kacan kus (Flappy Bird varyanti)
+**Tarih:** 2026-04-12
+**Sürüm:** 1.0.0+5 (Split APK test build hazır)
+**Platform:** Android (arm64, armeabi-v7a, x86_64)
+**Framework:** Flutter 3 + Flame 1.36.0
+**Paket adı:** `com.tumray.emberwings`
+**Repo:** https://github.com/tumrayt2-dev/ember-wings-flutter
 
 ---
 
-## Proje Yapisi
+## Tamamlanan
+
+### Oyun / oynanış
+- 4 biyom: Alev, Bataklık, Buzul, Gece — her biri kendi renk paleti + özel ağaç varyantları
+- 4 karakter: Phoenix (ücretsiz), Kingfisher, Frost Bird, Shadow
+- Tek parmak zıplama fiziği + kuş izi efekti
+- Biyom geçiş flash efekti
+- Ağaç gap spacing constraint (`_maxGapShift = 120`) — imkansız geçişler engellendi
+- Gece biyomu kontrast iyileştirmesi
+- Responsive UI (LayoutBuilder ile)
+- Karakter seçici sonsuz döngü (son karakter → başa dön)
+- Canlanma: max 2/oyun (herkes için), reklam sonrası "HAZIR OL! → DEVAM ET" overlay
+
+### Dil desteği
+- Türkçe + İngilizce tam UI çevirisi
+- `LocaleService` — SharedPreferences ile kalıcı dil tercihi
+- Tüm overlay metinleri localize (menü, game over, pause, popup, biyomlar)
+- Ayarlar popup: ses toggle + dil seçimi (bayraklı kart UI)
+
+### Ses
+- `AudioPool` ile ses efektleri (jump, score) — pool overflow bug'ı çözüldü
+- Ses aç/kapa (ayarlar popup + HUD)
+
+### Monetizasyon
+- IAP servis: karakter + bundle + reklamsız paket
+- **Bug fix**: Satın alınan karakterin sahiplendirilmesi (`substring` düzeltmesi)
+- **UI**: Fiyat yüklenmediğinde IAP butonları gizleniyor
+- AdMob gerçek ID'leri entegre, debug'ta Google test ID'leri
+- Rewarded video → ekstra can hakkı akışı
+- Kilitli karakterler: BAŞLA/DENE(X)/KİLİDİ AÇ dinamik buton + chip
+- Game Over: aynı 3-state mantık + popup açma
+- **Reklamsız paket dengesi:**
+  - Saatlik video limiti: 5/saat (normal kullanıcı sınırsız)
+  - Günlük bonus: +1 hak/gün, max 3 birikir (kilitli karakterler arası ortak)
+  - Canlanma: max 2/oyun (reklamsız dahil)
+  - UI: limit dolunca gri buton + bilgi mesajı
+
+### Firebase
+- `firebase_core`, `firebase_crashlytics`, `firebase_analytics` entegre
+- Crash handler: `runZonedGuarded` + `FlutterError.onError` + `PlatformDispatcher.onError`
+- Analytics events: `game_start`, `game_over`, `continue_used`, `ad_shown`, `character_selected`, `iap_purchase`
+- Web + init failure fallback
+
+### Play Games Services
+- Google Cloud Console OAuth client (Android)
+- `AndroidManifest.xml` meta-data + `strings.xml`
+- Leaderboard: "En Yüksek Skor" — ID `CgkInfXyq70WEAIQAQ`
+
+### Release konfigürasyonu
+- Upload keystore + `key.properties`
+- `signingConfigs.release` + debug fallback
+- R8 minify + resource shrink + ProGuard keep rules
+- 4 SHA fingerprint Firebase'e eklendi
+
+### Mağaza / doküman
+- Privacy policy TR + EN (GitHub Pages)
+- README — Ember Wings tanıtımı
+- Launcher icon + native splash
+- Play Console: uygulama oluşturuldu, Internal Testing track aktif
+
+---
+
+## Onay bekliyor / yayın sonrası yapılacak
+
+### Play Console
+- [ ] AAB yükle (version bump + build gerekli)
+- [ ] Ekran görüntüleri + feature graphic + kısa/uzun açıklama
+- [ ] Kategori: Arcade + Casual
+- [ ] İçerik derecelendirmesi (IARC anketi)
+- [ ] Veri güvenliği formu (AdMob AAID, Crashlytics, Analytics)
+- [ ] Privacy policy URL'si gir
+
+### IAP ürünleri (satıcı profili onayından sonra)
+- [ ] `character_kingfisher` — ₺29,99
+- [ ] `character_frostBird` — ₺29,99
+- [ ] `character_shadow` — ₺29,99
+- [ ] `character_bundle_all` — ₺69,99
+- [ ] `ad_free_pack` — ₺39,99
+- [ ] Reklamsız paket açıklamasını güncelle (saatlik video limiti, günlük bonus, canlanma bilgisi)
+
+### Play Games Services
+- [ ] Leaderboard yayınla (production submission'dan önce)
+
+### Kapalı test
+- [ ] En az 12 test kullanıcısı opt-in
+- [ ] 14 gün kesintisiz test süresi
+- [ ] Production submission
+
+---
+
+## Ertelenen / v1.0.1+ backlog
+
+- **Zorluk artışı**: Gap daraltma (skor bazlı), dikey salınım (sin() engeller)
+- **Karakter mekanikleri**: Hitbox/yerçekimi farkı, biyom bazlı zorluk
+- **Firebase Crashlytics symbol upload** — obfuscated stack trace decode
+- **Karakter kart animasyonları**
+
+---
+
+## Proje yapısı
 
 ```
 lib/
-├── main.dart                          # Uygulama giris noktasi
+├── main.dart
 ├── config/
-│   ├── game_config.dart               # Oyun fizik sabitleri, renkler, boyutlar
-│   └── monetization_config.dart       # Urun ID'leri, AdMob ID, seans ayarlari
+│   ├── game_config.dart
+│   └── monetization_config.dart
 ├── models/
-│   └── game_character.dart            # Karakter tanimlari, biom renkleri
+│   └── game_character.dart
 ├── components/
-│   ├── bird.dart                      # Kus fizigi, animasyon, cizim
-│   ├── background.dart                # Arka plan, kivilcim parcaciklari, duman
-│   ├── ground.dart                    # Kayan zemin, komur deseni
-│   ├── tree_obstacle.dart             # Agac engelleri (ust+alt cift)
-│   └── score_display.dart             # Skor gosterimi
+│   ├── bird.dart
+│   ├── bird_trail.dart
+│   ├── background.dart
+│   ├── ground.dart
+│   ├── tree_obstacle.dart
+│   └── score_display.dart
 ├── game/
-│   ├── ember_wings_game.dart          # Ana oyun sinifi, state yonetimi
-│   └── overlays.dart                  # Menu, GameOver, Pause, HUD arayuzleri
+│   ├── ember_wings_game.dart
+│   └── overlays.dart
 └── services/
-    ├── character_service.dart         # Karakter sahiplik, deneme hakki, seans
-    └── purchase_service.dart          # Google Play IAP entegrasyonu
+    ├── character_service.dart
+    ├── purchase_service.dart
+    ├── ad_service.dart
+    ├── audio_service.dart
+    ├── score_service.dart
+    ├── leaderboard_service.dart
+    ├── analytics_service.dart
+    └── locale_service.dart          # TR/EN dil desteği
 ```
 
-**Toplam:** 13 Dart dosyasi
+---
+
+## Kimlikler ve kritik değerler
+
+| Alan | Değer |
+|---|---|
+| Package name | `com.tumray.emberwings` |
+| AdMob App ID | `ca-app-pub-8438407620610676~6627756207` |
+| AdMob Rewarded | `ca-app-pub-8438407620610676/6198788478` |
+| Play Games Project ID | `772380867229` |
+| Leaderboard ID | `CgkInfXyq70WEAIQAQ` |
+| Firebase App ID | `1:772380867229:android:d4c1c442f13e5c32f37274` |
+| Privacy policy | https://tumrayt2-dev.github.io/ember-wings-flutter/privacy_policy.html |
+| İletişim | tumrayt2@gmail.com |
 
 ---
 
-## Karakterler
+## Son oturum (2026-04-12) özeti
 
-| Karakter   | Durum   | Biom   | Govde Rengi | Kanat Rengi  |
-|------------|---------|--------|-------------|--------------|
-| Phoenix    | UCRETSIZ| Ates   | Altin       | Turuncu      |
-| Kingfisher | KILITLI | Su     | Cyan        | Koyu Cyan    |
-| Frost Bird | KILITLI | Buz    | Acik Cyan   | Cyan         |
-| Shadow     | KILITLI | Gece   | Koyu Gri    | Koyu         |
+1. Monetizasyon dengeleme: saatlik video limiti, günlük bonus hak, canlanma max 2
+2. Canlanma akışı yenilendi: invincibility → "Devam Et" overlay
+3. TR + EN dil desteği + LocaleService
+4. Ayarlar popup: ses toggle + dil seçimi (bayraklı kartlar)
+5. Karakter seçici sonsuz döngü
+6. UI düzeltmeleri: buton taşması, fiyat gizleme, chip metinleri
 
-Her karakterin kendine ozel 8 renk seti var (gokyuzu, agac, zemin, parcacik).
-
----
-
-## Tamamlanan Ozellikler
-
-### Oyun Mekanikleri
-- [x] Dokunarak zipla fizigi (yercekimi: 900, ziplama: -350, maks hiz: 500)
-- [x] Prosedural agac engel olusturma (aralik: 160px, spawn: 1.6s, hiz: 150px/s)
-- [x] Carpisma algilama (kus vs zemin, kus vs agac)
-- [x] Skor takibi (kus agaci gecince +1)
-- [x] Oyun durumlari: menu → oynuyor → duraklatma/olum → menu
-- [x] Devam etme sistemi (oyun basina 2 hak, reklamsiz pakette sinirsiz)
-- [x] Devam ederken yakin engelleri temizleme
-
-### Gorsel/Grafik (Tamami Prosedural - Asset Yok)
-- [x] Ozel kus cizimi (govde, kanat, goz, gaga)
-- [x] Kanat cirpma animasyonu
-- [x] Kivilcim parcaciklari (arka plan)
-- [x] Duman bulutlari (kayan)
-- [x] Kayan zemin deseni (komur, kul)
-- [x] Agac govdeleri (kabuk cizgileri, kivilcim noktalari, parlama efekti)
-- [x] Biom bazli degrade gokyuzu renkleri
-- [x] Karakter bazli renk degisimi
-
-### Arayuz (UI)
-- [x] Ana menu — karakter karuseli (kaydirma + ok butonlari)
-- [x] Biom bazli arka plan degradesi (menu)
-- [x] Kilitli karakter karanlik efekti + kilit ikonu
-- [x] Kilitli karakter popup (dene, video izle, satin al, tumunu al)
-- [x] Oyun bitti ekrani (skor, devam et, tekrar dene, ana menu)
-- [x] Duraklatma ekrani (devam et, ana menu)
-- [x] HUD (ses acma/kapama + duraklatma butonlari)
-- [x] GameOver overlay — LayoutBuilder ile responsive
-- [x] Turkce arayuz metinleri
-
-### Monetizasyon Altyapisi
-- [x] Karakter kilit acma sistemi (ucretsiz Phoenix, 3 kilitli)
-- [x] Deneme hakki sistemi (karakter basina 2 ucretsiz oyun)
-- [x] Video odul seans sistemi (video basina 3 oyun hakki)
-- [x] SharedPreferences ile veri kaliciligi
-- [x] Google Play IAP framework kurulumu
-- [x] Dinamik fiyat cekme (Play Store'dan)
-- [x] Satin alma isleyicisi (karakter, paket, reklamsiz)
-- [x] Paket satin alma (tum karakterler, %20 indirim)
-- [x] Reklamsiz paket (sinirsiz devam etme)
-- [x] Secili karakter hafizasi
-- [x] Web uyumluluk guardi (kIsWeb — IAP atlanir)
-
-### Servisler
-- [x] CharacterService — sahiplik, deneme, seans yonetimi
-- [x] PurchaseService — IAP baglantisi, satin alma, geri yukleme
-
----
-
-## Eksik / Tamamlanmamis Ozellikler
-
-### 1. AdMob Reklam Entegrasyonu (KRITIK)
-**Durum:** Butonlar hazir, backend altyapisi hazir, AdMob entegrasyonu YOK
-
-**Eksik noktalar:**
-- `overlays.dart:434` — Video izle butonu (kilitli karakter popup): Simdilik video gostermeden direkt 3 oyun hakki veriyor
-- `overlays.dart:573` — Devam et butonu (game over): Simdilik video gostermeden direkt devam ettiriyor
-- `google_mobile_ads` paketi pubspec.yaml'a eklenmemis
-- AdMob baslatma (initialize) kodu yok
-- Rewarded video yukleme/gosterme/callback mantigi yok
-- `monetization_config.dart:17` — Test ID var, gercek ID ile degistirilecek
-
-**Yapilmasi gerekenler:**
-```
-1. google_mobile_ads paketini ekle
-2. AdMob SDK baslatma kodunu main.dart'a ekle
-3. RewardedAd yukleme servisi olustur
-4. Video izle butonlarini reklam gosterimi ile bagla
-5. Reklam basarili izlendiginde odulu ver
-6. Test ID'lerini gercek ID'ler ile degistir (yayin oncesi)
-```
-
-### 2. Ses Efektleri (ORTA)
-**Durum:** Ses acma/kapama butonu MEVCUT ama hicbir ses efekti yok
-
-**Eksik noktalar:**
-- Ziplama sesi yok
-- Carpisma/yanma sesi yok
-- Skor artis sesi yok
-- Arka plan muzigi yok
-- Buton tiklama sesi yok
-- Flame audio sistemi (`FlameAudio`) entegre edilmemis
-- Ses dosyalari (assets/audio/) yok
-
-### 3. Farkli Biom Gorselleri (DUSUK)
-**Durum:** Biom RENKLERI tanimli ama sadece menu arka planinda kullaniliyor
-
-**Eksik noktalar:**
-- Oyun icinde arka plan her zaman ates biomu (sabit renkler)
-- Agac engelleri her zaman ayni gorunum
-- Zemin her zaman ayni gorunum
-- Secilen karakterin biom renklerinin oyuna yansimasi yok
-- `game_config.dart` sabitleri biom bazli degil
-
-**Yapilmasi gerekenler:**
-```
-1. Background component'i aktif karakterin biom renklerini kullanacak sekilde guncelle
-2. TreeObstacle'da biom bazli renkler kullan
-3. Ground'da biom bazli renkler kullan
-4. Parcacik efektlerini bioma gore degistir (ates→kivilcim, su→damla, buz→kristal, gece→yildiz)
-```
-
-### 4. Google Play Games Servisleri (DUSUK)
-**Durum:** Hic baslanmadi
-
-**Eksik noktalar:**
-- Liderlik tablosu (leaderboard) yok
-- Basarimlar (achievements) yok
-- Google Play Games oturum acma yok
-- games_services paketi yok
-
-### 5. Karakter Ozel Mekanikleri (DUSUK)
-**Durum:** Hic baslanmadi
-
-**Planlanan mekanikler:**
-- Phoenix: Ates direnci (engelle temas geciktirmesi?)
-- Kingfisher: Daha kucuk hitbox
-- Frost Bird: Yavas dusme
-- Shadow: Gorunmezlik (kisa sureli)
-
----
-
-## Bagimlilklar (pubspec.yaml)
-
-| Paket              | Versiyon | Amac                      | Durum    |
-|--------------------|----------|---------------------------|----------|
-| flame              | ^1.36.0  | 2D oyun motoru            | AKTIF    |
-| shared_preferences | ^2.5.5   | Yerel veri saklama        | AKTIF    |
-| in_app_purchase    | ^3.2.3   | Google Play satin alma    | AKTIF    |
-| cupertino_icons    | ^1.0.8   | iOS ikon seti             | AKTIF    |
-| google_mobile_ads  | —        | AdMob reklam              | EKSIK    |
-| games_services     | —        | Play Games liderlik/basarim| EKSIK   |
-| flame_audio        | —        | Ses efektleri             | EKSIK    |
-
----
-
-## Bilinen Sorunlar
-
-1. **Emulator crash:** Dusuk RAM'li emulatorlerde lowmemorykiller uygulamayi olduruyor. Fiziksel cihazda sorun yok.
-2. **BillingClient uyarisi:** Emulatorde "API version 3 not supported" — normal, gercek cihazda calisiyor.
-3. **Chrome'da IAP:** Web'de IAP desteklenmiyor, kIsWeb guardi ile handle ediliyor.
-
----
-
-## Yayin Oncesi Yapilacaklar (Checklist)
-
-### Zorunlu
-- [ ] AdMob rewarded video entegrasyonu (2 konum)
-- [ ] AdMob gercek unit ID'leri (test ID'leri degistirilecek)
-- [ ] Google Play Console'da urun tanimlari (character_*, character_bundle_all, ad_free_pack)
-- [ ] Uygulama ikonu tasarimi
-- [ ] Splash screen
-- [ ] ProGuard/R8 ayarlari (release build)
-- [ ] Uygulama adi ve paket adi son kontrolu (com.tumray.flappy_bird → ?)
-- [ ] Privacy Policy sayfasi
-- [ ] Minimum Android SDK kontrolu
-
-### Onerilen
-- [ ] Ses efektleri eklenmesi
-- [ ] Biom gorsellerinin oyun icine yansitmasi
-- [ ] Google Play Games liderlik tablosu
-- [ ] Firebase Crashlytics (crash raporlama)
-- [ ] Firebase Analytics (kullanici metrikleri)
-
-### Opsiyonel
-- [ ] Karakter ozel mekanikleri
-- [ ] Basarim sistemi
-- [ ] Gunluk gorev/odul sistemi
-- [ ] Sosyal paylasim (skor paylasma)
-
----
-
-## Teknik Notlar
-
-- **Oyun boyutu:** Sabit 400x800 piksel, AspectRatio ile sarmalanmis
-- **Render:** Tamamen prosedural (Canvas) — hicbir gorsel asset yok
-- **Dart SDK:** ^3.11.4
-- **APK boyutu:** ~15.5 MB (arm64 release)
-- **Mimari:** Flame game + Flutter overlay sistemi (menu/HUD oyun ustunde)
+**Şu an**: Kapalı test onay sürecini bekliyoruz. IAP ürünleri satıcı profili onayından sonra oluşturulacak.

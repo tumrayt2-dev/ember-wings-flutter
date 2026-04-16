@@ -5,19 +5,26 @@ import '../config/monetization_config.dart';
 
 class AdService {
   RewardedAd? _rewardedAd;
-  bool _isLoading = false;
+  BannerAd? _bannerAd;
+  bool _isRewardedLoading = false;
+  bool _isBannerLoaded = false;
 
   bool get isAdReady => _rewardedAd != null;
+  bool get isBannerLoaded => _isBannerLoaded;
+  BannerAd? get bannerAd => _bannerAd;
 
   Future<void> init() async {
     if (kIsWeb) return;
     await MobileAds.instance.initialize();
-    await _loadAd();
+    _loadRewardedAd();
+    _loadBannerAd();
   }
 
-  Future<void> _loadAd() async {
-    if (kIsWeb || _isLoading) return;
-    _isLoading = true;
+  // ─── Rewarded ────────────────────────────────────────────────
+
+  Future<void> _loadRewardedAd() async {
+    if (kIsWeb || _isRewardedLoading) return;
+    _isRewardedLoading = true;
 
     await RewardedAd.load(
       adUnitId: MonetizationConfig.rewardedAdUnitId,
@@ -25,22 +32,20 @@ class AdService {
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
           _rewardedAd = ad;
-          _isLoading = false;
+          _isRewardedLoading = false;
         },
         onAdFailedToLoad: (error) {
           _rewardedAd = null;
-          _isLoading = false;
+          _isRewardedLoading = false;
         },
       ),
     );
   }
 
-  /// Rewarded video göster, başarılı izlenirse onRewarded çağrılır.
-  /// Reklam yoksa veya web'deyse doğrudan onRewarded çağrılır (test/geliştirme kolaylığı).
   Future<void> showRewardedAd({required VoidCallback onRewarded}) async {
     if (kIsWeb || _rewardedAd == null) {
       onRewarded();
-      _loadAd();
+      _loadRewardedAd();
       return;
     }
 
@@ -48,12 +53,12 @@ class AdService {
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _rewardedAd = null;
-        _loadAd();
+        _loadRewardedAd();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         ad.dispose();
         _rewardedAd = null;
-        _loadAd();
+        _loadRewardedAd();
       },
     );
 
@@ -64,7 +69,28 @@ class AdService {
     );
   }
 
+  // ─── Banner ───────────────────────────────────────────────────
+
+  void _loadBannerAd() {
+    if (kIsWeb) return;
+
+    _bannerAd = BannerAd(
+      adUnitId: MonetizationConfig.bannerAdUnitId,
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (_) => _isBannerLoaded = true,
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          _bannerAd = null;
+          _isBannerLoaded = false;
+        },
+      ),
+    )..load();
+  }
+
   void dispose() {
     _rewardedAd?.dispose();
+    _bannerAd?.dispose();
   }
 }
