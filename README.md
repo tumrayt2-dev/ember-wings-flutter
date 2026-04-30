@@ -1,17 +1,36 @@
-# flappy_bird
+# Ember Wings
 
-A new Flutter project.
+Yanan bir ormandan kaçmaya çalışan küçük bir kuşun hikâyesi. Flutter + Flame ile yazılmış, tek parmakla oynanan bir arcade oyunu.
 
-## Getting Started
+4 farklı biyom, 4 farklı karakter, ödüllü video ile ekstra can sistemi ve liderlik tablosu içerir.
 
-This project is a starting point for a Flutter application.
+## Linkler
 
-A few resources to get you started if this is your first Flutter project:
+- **Gizlilik politikası:** [privacy_policy.html](https://tumrayt2-dev.github.io/ember-wings-flutter/privacy_policy.html)
+- **İletişim:** tumrayt2@gmail.com
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Teknik
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Flutter 3 / Dart
+- [Flame](https://flame-engine.org/) 1.36 oyun motoru
+- Firebase Crashlytics + Analytics
+- Google AdMob (ödüllü reklamlar)
+- Google Play Games Services (liderlik tablosu)
+- Google Play Billing (uygulama içi satın alma)
+
+## Biyomlar
+
+- 🔥 **Alev** — yanan orman, ateş kuşu
+- 💧 **Bataklık** — sazlıklar arası, su kuşu
+- ❄️ **Buzul** — kış ormanı, buz kuşu
+- 🌙 **Gece** — gölgeler arası, gölge kuşu
+
+## Build
+
+```bash
+flutter pub get
+flutter run                         # debug
+flutter build appbundle --obfuscate --split-debug-info=build/symbols
+```
+
+Release imzalama için `android/key.properties` ve `android/upload-keystore.jks` dosyaları gereklidir (repo'ya dahil değildir).
