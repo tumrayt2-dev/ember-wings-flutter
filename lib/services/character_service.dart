@@ -3,6 +3,7 @@ import '../models/game_character.dart';
 
 class CharacterService {
   static const _selectedKey = 'selected_character';
+  static const _reverseGravityKey = 'reverse_gravity_enabled';
   late SharedPreferences _prefs;
 
   Future<void> init() async {
@@ -20,5 +21,13 @@ class CharacterService {
 
   Future<void> setSelectedCharacter(CharacterId id) async {
     await _prefs.setString(_selectedKey, id.name);
+  }
+
+  bool getReverseGravityEnabled() {
+    return _prefs.getBool(_reverseGravityKey) ?? false;
+  }
+
+  Future<void> setReverseGravityEnabled(bool enabled) async {
+    await _prefs.setBool(_reverseGravityKey, enabled);
   }
 }

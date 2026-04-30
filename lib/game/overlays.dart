@@ -219,38 +219,67 @@ class _MenuOverlayState extends State<MenuOverlay> {
                 ),
               ),
               const Spacer(),
+              // Ters Yer Çekimi toggle
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _ReverseGravityToggle(
+                  game: widget.game,
+                  onChanged: () => setState(() {}),
+                ),
+              ),
               // BAŞLA butonu
               Padding(
-                padding: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.only(bottom: 18),
                 child: GestureDetector(
                   onTap: () {
                     widget.game.audioService.playButton();
                     widget.game.startGame();
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 18),
+                    padding: const EdgeInsets.symmetric(horizontal: 70, vertical: 22),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFFFF4500), Color(0xFFFF8C00)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0xFFFF6B00), Color(0xFFFF3000)],
                       ),
-                      borderRadius: BorderRadius.circular(30),
+                      borderRadius: BorderRadius.circular(35),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.4),
+                        width: 2,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.orange.withValues(alpha: 0.5),
-                          blurRadius: 15, spreadRadius: 2,
+                          color: Colors.orange.withValues(alpha: 0.7),
+                          blurRadius: 24,
+                          spreadRadius: 3,
+                        ),
+                        BoxShadow(
+                          color: const Color(0xFFFF4500).withValues(alpha: 0.5),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
                     child: Text(
                       _t(widget.game, 'start'),
                       style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w900,
                         color: Colors.white,
+                        letterSpacing: 3,
+                        shadows: [
+                          Shadow(color: Color(0xAA000000), blurRadius: 4, offset: Offset(0, 2)),
+                        ],
                       ),
                     ),
                   ),
                 ),
+              ),
+              // Challenge butonu (Soon)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _ChallengeSoonButton(game: widget.game),
               ),
               // Sıralama butonu
               Padding(
@@ -486,23 +515,132 @@ class _GameHudState extends State<GameHud> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _HudButton(
-              icon: widget.game.soundEnabled ? Icons.volume_up : Icons.volume_off,
-              onTap: () {
-                widget.game.toggleSound();
-                setState(() {});
-              },
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _HudButton(
+                  icon: widget.game.soundEnabled ? Icons.volume_up : Icons.volume_off,
+                  onTap: () {
+                    widget.game.toggleSound();
+                    setState(() {});
+                  },
+                ),
+                const SizedBox(width: 10),
+                _HudButton(icon: Icons.pause, onTap: () => widget.game.pauseGame()),
+              ],
             ),
-            const SizedBox(width: 10),
-            _HudButton(icon: Icons.pause, onTap: () => widget.game.pauseGame()),
-          ],
-        ),
+          ),
+          // Ters yer çekimi uyarısı
+          ValueListenableBuilder<int>(
+            valueListenable: widget.game.flipWarningSession,
+            builder: (_, session, __) {
+              if (session == 0) return const SizedBox.shrink();
+              return _GravityFlipWarning(
+                key: ValueKey(session),
+                game: widget.game,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// 3 saniyelik ters yer çekimi geçiş uyarısı
+class _GravityFlipWarning extends StatefulWidget {
+  final EmberWingsGame game;
+  const _GravityFlipWarning({super.key, required this.game});
+
+  @override
+  State<_GravityFlipWarning> createState() => _GravityFlipWarningState();
+}
+
+class _GravityFlipWarningState extends State<_GravityFlipWarning>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final bool _toReversed; // bu flip ters mode'a mı geçiyor
+
+  @override
+  void initState() {
+    super.initState();
+    // Mevcut state ne ise, yeni flip o state'in tersi olacak
+    _toReversed = !widget.game.isGravityReversed;
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (_, __) {
+          final progress = _controller.value;
+          // Sürekli azalan opacity — başlar 0.55, biter 0
+          final opacity = (0.55 * (1.0 - progress)).clamp(0.0, 0.55);
+          // Scale yavaş büyür (1.0 → 1.15) — silikleşme hissi
+          final scale = 1.0 + 0.15 * progress;
+          final remaining = 3 - (progress * 3).floor();
+          final accent = _toReversed ? const Color(0xFFFFD700) : const Color(0xFF80DEEA);
+
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 110),
+              child: Opacity(
+                opacity: opacity,
+                child: Transform.scale(
+                  scale: scale,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _t(widget.game,
+                            _toReversed ? 'gravityFlipWarning' : 'gravityNormalWarning'),
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 2.0,
+                          shadows: [
+                            Shadow(color: accent, blurRadius: 12),
+                            const Shadow(color: Colors.black, blurRadius: 6),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$remaining',
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(color: accent, blurRadius: 14),
+                            const Shadow(color: Colors.black, blurRadius: 6),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -855,4 +993,435 @@ class _BiomeInfo {
   final IconData icon;
   final String label;
   const _BiomeInfo(this.icon, this.label);
+}
+
+// ==================== CHALLENGE MODE (SOON) ====================
+
+class _ChallengeSoonButton extends StatelessWidget {
+  final EmberWingsGame game;
+  const _ChallengeSoonButton({required this.game});
+
+  void _showTeaser(BuildContext context) {
+    game.audioService.playButton();
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => Dialog(
+        backgroundColor: const Color(0xFF18152e),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: const BorderSide(color: Color(0xFFFF4500), width: 1.5),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.local_fire_department, color: Color(0xFFFF4500), size: 32),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _t(game, 'challengeTitle'),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF4500),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      _t(game, 'comingSoon'),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _t(game, 'challengeTeaser'),
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.4,
+                  color: Colors.white.withValues(alpha: 0.85),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _ChallengeFeatureRow(icon: Icons.public,         text: _t(game, 'challengeFeature1')),
+              const SizedBox(height: 8),
+              _ChallengeFeatureRow(icon: Icons.swap_vert,      text: _t(game, 'challengeFeature2')),
+              const SizedBox(height: 8),
+              _ChallengeFeatureRow(icon: Icons.emoji_events,   text: _t(game, 'challengeFeature3')),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0x33FF4500),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFF4500).withValues(alpha: 0.5)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.update, color: Color(0xFFFF8C00), size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _t(game, 'challengeFooter'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Center(
+                child: GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0x44FF4500),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFFF4500)),
+                    ),
+                    child: const Text(
+                      'OK',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _showTeaser(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          // Locked feel: koyu zemin + minimal glow
+          color: Colors.black.withValues(alpha: 0.45),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: const Color(0xFFFF4500).withValues(alpha: 0.55),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.local_fire_department, color: Color(0xFFFF6B00), size: 20),
+            const SizedBox(width: 8),
+            Text(
+              _t(game, 'challenge'),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                color: Colors.white.withValues(alpha: 0.85),
+                letterSpacing: 2,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF4500),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                _t(game, 'comingSoon'),
+                style: const TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChallengeFeatureRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _ChallengeFeatureRow({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFFFF8C00), size: 16),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.3,
+              color: Colors.white.withValues(alpha: 0.85),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ==================== TERS YER ÇEKİMİ TOGGLE ====================
+
+class _ReverseGravityToggle extends StatefulWidget {
+  final EmberWingsGame game;
+  final VoidCallback onChanged;
+  const _ReverseGravityToggle({required this.game, required this.onChanged});
+
+  @override
+  State<_ReverseGravityToggle> createState() => _ReverseGravityToggleState();
+}
+
+class _ReverseGravityToggleState extends State<_ReverseGravityToggle> {
+  late bool _enabled;
+
+  @override
+  void initState() {
+    super.initState();
+    _enabled = widget.game.characterService.getReverseGravityEnabled();
+  }
+
+  void _toggle() {
+    setState(() => _enabled = !_enabled);
+    widget.game.characterService.setReverseGravityEnabled(_enabled);
+    widget.game.audioService.playButton();
+    widget.onChanged();
+  }
+
+  void _showInfo() {
+    widget.game.audioService.playButton();
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => Dialog(
+        backgroundColor: const Color(0xFF1a1a2e),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFFFFD700), width: 1.5),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.swap_vert, color: Color(0xFFFFD700), size: 30),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _t(widget.game, 'reverseGravity'),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _t(widget.game, 'reverseGravityDesc'),
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.4,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                height: 1,
+                color: const Color(0xFFFFD700).withValues(alpha: 0.3),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _t(widget.game, 'howToPlay').toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFFFFD700),
+                  letterSpacing: 1.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _t(widget.game, 'reverseHowTo'),
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.5,
+                  color: Colors.white.withValues(alpha: 0.8),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Center(
+                child: GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0x44FFD700),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFFFD700)),
+                    ),
+                    child: const Text(
+                      'OK',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: 240,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: _enabled
+            ? const Color(0x33FFD700)
+            : const Color(0x33000000),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: _enabled
+              ? const Color(0xFFFFD700)
+              : Colors.white.withValues(alpha: 0.2),
+          width: 1.2,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.swap_vert,
+            color: _enabled
+                ? const Color(0xFFFFD700)
+                : Colors.white.withValues(alpha: 0.5),
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: GestureDetector(
+              onTap: _toggle,
+              child: Text(
+                _t(widget.game, 'reverseGravity'),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: _enabled
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.75),
+                ),
+              ),
+            ),
+          ),
+          // Switch
+          GestureDetector(
+            onTap: _toggle,
+            child: Container(
+              width: 36,
+              height: 20,
+              decoration: BoxDecoration(
+                color: _enabled
+                    ? const Color(0xFFFFD700)
+                    : Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                alignment: _enabled ? Alignment.centerRight : Alignment.centerLeft,
+                child: Container(
+                  margin: const EdgeInsets.all(2),
+                  width: 16,
+                  height: 16,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          // Info button
+          GestureDetector(
+            onTap: _showInfo,
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '?',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white.withValues(alpha: 0.85),
+                  height: 1,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

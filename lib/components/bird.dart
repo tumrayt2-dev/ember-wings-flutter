@@ -3,10 +3,11 @@ import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/painting.dart';
 import '../config/game_config.dart';
+import '../game/ember_wings_game.dart';
 import 'tree_obstacle.dart';
 import 'ground.dart';
 
-class Bird extends PositionComponent with CollisionCallbacks {
+class Bird extends PositionComponent with CollisionCallbacks, HasGameReference<EmberWingsGame> {
   double velocity = 0;
   double _wingAngle = 0;
   bool isDead = false;
@@ -85,7 +86,8 @@ class Bird extends PositionComponent with CollisionCallbacks {
 
   void jump() {
     if (isDead) return;
-    velocity = GameConfig.jumpForce;
+    // Ters yer çekiminde tap aşağı iter (pozitif velocity)
+    velocity = game.isGravityReversed ? -GameConfig.jumpForce : GameConfig.jumpForce;
     _wingAngle = -0.5;
   }
 
@@ -104,7 +106,9 @@ class Bird extends PositionComponent with CollisionCallbacks {
     super.update(dt);
     if (isDead || !isActive) return;
 
-    velocity += GameConfig.gravity * dt;
+    // Ters yer çekiminde gravity yukarı çeker (negatif velocity)
+    final gravityValue = game.isGravityReversed ? -GameConfig.gravity : GameConfig.gravity;
+    velocity += gravityValue * dt;
     velocity  = velocity.clamp(-GameConfig.maxVelocity, GameConfig.maxVelocity);
     position.y += velocity * dt;
 

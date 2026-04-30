@@ -57,6 +57,23 @@ class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection 
   final List<TreePair> _activeTreePairs = [];
   double _scoreSoundCooldown = 0;
 
+  // Ters yer çekimi sistemi
+  bool reverseGravityEnabled = false;  // kullanıcı tercihi (kalıcı)
+  bool isGravityReversed = false;       // şu anki oyun durumu
+  double _gravityFlipTimer = 0;         // bir sonraki flip için geri sayım
+  double _postFlipNoSpawnTimer = 0;     // flip sonrası ağaç spawn yasağı
+  static const double _warningDuration = 3.0;
+  // Normal modda kalma süresi (uzun rahat)
+  static const double _minNormalInterval = 30.0;
+  static const double _maxNormalInterval = 45.0;
+  // Ters modda kalma süresi (kısa zorlu)
+  static const double _minReverseInterval = 15.0;
+  static const double _maxReverseInterval = 20.0;
+  static const double _postFlipNoSpawnDuration = 1.0;
+  // Uyarı bildirici — UI bunu dinler
+  final ValueNotifier<int> flipWarningSession = ValueNotifier(0);
+  bool _wasFlipWarning = false;
+
   @override
   Future<void> onLoad() async {
     await characterService.init();
@@ -103,13 +120,70 @@ class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection 
 
     if (_scoreSoundCooldown > 0) _scoreSoundCooldown -= clampedDt;
 
+    _updateGravityFlip(clampedDt);
+
     _treeSpawnTimer += clampedDt;
-    if (_treeSpawnTimer >= currentSpawnInterval) {
+    if (_treeSpawnTimer >= currentSpawnInterval && _postFlipNoSpawnTimer <= 0) {
       _treeSpawnTimer = 0;
       _spawnTree();
     }
 
     _checkScore();
+  }
+
+  void _updateGravityFlip(double dt) {
+    if (_postFlipNoSpawnTimer > 0) _postFlipNoSpawnTimer -= dt;
+    if (!reverseGravityEnabled) return;
+
+    _gravityFlipTimer -= dt;
+
+    final isWarning = _gravityFlipTimer <= _warningDuration && _gravityFlipTimer > 0;
+
+    // Yeni uyarı tetiklendi
+    if (isWarning && !_wasFlipWarning) {
+      audioService.playButton();
+      flipWarningSession.value = flipWarningSession.value + 1;
+    }
+    _wasFlipWarning = isWarning;
+
+    // Flip
+    if (_gravityFlipTimer <= 0) {
+      isGravityReversed = !isGravityReversed;
+      _gravityFlipTimer = _nextFlipInterval();
+      audioService.playScore();
+      _onGravityFlipped();
+    }
+  }
+
+  double _nextFlipInterval() {
+    // Şu an ters moddaysak → kısa kal, sonra normale dön
+    // Şu an normal moddaysak → uzun kal, sonra terse dön
+    if (isGravityReversed) {
+      return _minReverseInterval + _random.nextDouble() * (_maxReverseInterval - _minReverseInterval);
+    } else {
+      return _minNormalInterval + _random.nextDouble() * (_maxNormalInterval - _minNormalInterval);
+    }
+  }
+
+  void _onGravityFlipped() {
+    // Bird velocity sıfırla — temiz başlangıç
+    bird.velocity = 0;
+
+    // Bird'ün önündeki TÜM ağaçları temizle (ekran boş olur)
+    final bx = bird.position.x;
+    _activeTreePairs.removeWhere((tree) {
+      if (tree.obstacles.isEmpty) return true;
+      final tx = tree.obstacles.first.position.x;
+      if (tx > bx - 50) {
+        tree.removeFromParent();
+        return true;
+      }
+      return false;
+    });
+
+    // 1.5 saniye boyunca yeni ağaç spawn etme
+    _postFlipNoSpawnTimer = _postFlipNoSpawnDuration;
+    _treeSpawnTimer = 0;
   }
 
   double get currentSpeed {
@@ -274,6 +348,15 @@ class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection 
     _lastGapCenter = null;
     _treeSpawnTimer = currentSpawnInterval - 0.3;
     _scoreSoundCooldown = 0;
+
+    // Ters yer çekimi state reset
+    reverseGravityEnabled = characterService.getReverseGravityEnabled();
+    isGravityReversed = false;
+    _wasFlipWarning = false;
+    _postFlipNoSpawnTimer = 0;
+    flipWarningSession.value = 0; // önceki oyundan kalan uyarıyı sıfırla
+    // İlk flip için "normal modda kalma süresi" — yeni başlayan oyuncu rahat olsun
+    _gravityFlipTimer = reverseGravityEnabled ? _nextFlipInterval() : 0;
   }
 
   @override
