@@ -46,6 +46,11 @@ class TreeObstacle extends PositionComponent with CollisionCallbacks, HasGameRef
   // Ember alpha değerleri
   late final List<double> _emberAlphas;
 
+  // Sallanma animasyonu için yaşam süresi
+  double _timeAlive = 0;
+  // Her ağaç için rastgele faz offset (aynı anda spawn olanlar farklı sallanır)
+  late final double _swayPhase;
+
   TreeObstacle({
     required this.isTop,
     required this.treeHeight,
@@ -83,6 +88,9 @@ class TreeObstacle extends PositionComponent with CollisionCallbacks, HasGameRef
     _glowRectTop    = Rect.fromLTWH(0, treeHeight - 8, GameConfig.treeWidth, 8);
     _glowRectBottom = const Rect.fromLTWH(0, 0, GameConfig.treeWidth, 8);
     _trunkRect      = Rect.fromLTWH(0, 0, GameConfig.treeWidth, treeHeight);
+
+    // Her ağaç farklı fazda sallansın
+    _swayPhase = rng.nextDouble() * pi * 2;
   }
 
   @override
@@ -175,6 +183,7 @@ class TreeObstacle extends PositionComponent with CollisionCallbacks, HasGameRef
     super.update(dt);
     if (game.state != GameState.playing) return;
     position.x -= game.currentSpeed * dt;
+    _timeAlive += dt;
     if (position.x < -GameConfig.treeWidth) removeFromParent();
   }
 
@@ -239,9 +248,15 @@ class TreeObstacle extends PositionComponent with CollisionCallbacks, HasGameRef
   void _renderWater(Canvas canvas, BiomeColors biome) {
     _trunkPaint.color = biome.treeTrunk;
     _tipPaint.color   = biome.treeEmber;
+    // Her reed kendi fazında hafif sallanır (rüzgar etkisi)
+    final t = _timeAlive * 2.0 + _swayPhase;
     for (int i = 0; i < _reedCount; i++) {
+      final sway = sin(t + i * 0.7) * 1.5;
+      canvas.save();
+      canvas.translate(sway, 0);
       canvas.drawRect(_reedBodyRects[i], _trunkPaint);
       canvas.drawCircle(_reedTipOffsets[i], _reedTipRadius, _tipPaint);
+      canvas.restore();
     }
   }
 
@@ -254,11 +269,16 @@ class TreeObstacle extends PositionComponent with CollisionCallbacks, HasGameRef
 
   void _renderNight(Canvas canvas, BiomeColors biome) {
     _trunkPaint.color = biome.treeTrunk;
+    // Subtle wobble — gece ormanında hafif sallanan eğri sütun
+    final wobble = sin(_timeAlive * 1.2 + _swayPhase) * 1.0;
+    canvas.save();
+    canvas.translate(wobble, 0);
     canvas.drawPath(_nightShapePath, _trunkPaint);
     _nightGlowPaint.color = _cachedEmberColor060!;
     for (final ember in _embers) {
       canvas.drawCircle(ember.offset, ember.nightRadius, _nightGlowPaint);
     }
+    canvas.restore();
   }
 }
 

@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart' show ValueNotifier;
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
@@ -152,6 +153,7 @@ class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection 
     // Yeni uyarı tetiklendi
     if (isWarning && !_wasFlipWarning) {
       audioService.playButton();
+      HapticFeedback.lightImpact(); // uyarı başlangıcı
       flipWarningSession.value = flipWarningSession.value + 1;
     }
     _wasFlipWarning = isWarning;
@@ -161,6 +163,7 @@ class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection 
       isGravityReversed = !isGravityReversed;
       _gravityFlipTimer = _nextFlipInterval();
       audioService.playScore();
+      HapticFeedback.mediumImpact(); // flip anı
       _onGravityFlipped();
     }
   }
@@ -353,6 +356,7 @@ class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection 
     bird.isDead = true;
     bird.isActive = false;
     audioService.playHit();
+    HapticFeedback.heavyImpact(); // ölüm anı
     isNewHighScore = await scoreService.submitScore(scoreDisplay.score, mode: _scoreMode);
     leaderboardService.submitScore(scoreDisplay.score, mode: _scoreMode);
     analyticsService.logGameOver(scoreDisplay.score, isNewHighScore, _activeCharacterId.name);

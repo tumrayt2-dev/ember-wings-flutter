@@ -117,9 +117,11 @@ class Bird extends PositionComponent with CollisionCallbacks, HasGameReference<E
     _wingAngle += dt * 12;
     if (_wingAngle > pi * 2) _wingAngle -= pi * 2;
 
+    // Tavana çarpınca öl (zemin ile simetrik)
     if (position.y < GameConfig.birdSize / 2) {
       position.y = GameConfig.birdSize / 2;
-      velocity   = 0;
+      onHit?.call();
+      return;
     }
   }
 

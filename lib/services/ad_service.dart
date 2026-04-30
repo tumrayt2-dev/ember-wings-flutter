@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show VoidCallback;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -15,9 +16,76 @@ class AdService {
 
   Future<void> init() async {
     if (kIsWeb) return;
-    await MobileAds.instance.initialize();
-    _loadRewardedAd();
-    _loadBannerAd();
+
+    // GDPR/IDFA consent — AB kullanıcılarına dialog gösterir, AB dışı için no-op
+    // Hata olursa bile uygulamayı bloklamadan devam et (non-personalized ads gösterilir)
+    await _resolveConsent();
+
+    try {
+      await MobileAds.instance.initialize();
+      _loadRewardedAd();
+      _loadBannerAd();
+    } catch (_) {
+      // Init başarısız olsa bile uygulama çalışmaya devam etsin
+    }
+  }
+
+  Future<void> _resolveConsent() async {
+    final completer = Completer<void>();
+
+    void finish() {
+      if (!completer.isCompleted) completer.complete();
+    }
+
+    try {
+      ConsentInformation.instance.requestConsentInfoUpdate(
+        ConsentRequestParameters(),
+        () async {
+          // Başarı — gerekirse formu yükle ve göster
+          try {
+            ConsentForm.loadAndShowConsentFormIfRequired((FormError? error) {
+              finish();
+            });
+          } catch (_) {
+            finish();
+          }
+        },
+        (FormError error) {
+          // Hata — yine devam et (non-personalized ads)
+          finish();
+        },
+      );
+    } catch (_) {
+      finish();
+    }
+
+    // 5 saniye timeout — consent server cevaplamazsa askıda kalmasın
+    return completer.future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {},
+    );
+  }
+
+  /// Privacy ayarlar ekranı (kullanıcı onayını değiştirmek isterse)
+  Future<void> showPrivacyOptions() async {
+    if (kIsWeb) return;
+    try {
+      final completer = Completer<void>();
+      ConsentForm.showPrivacyOptionsForm((FormError? error) {
+        if (!completer.isCompleted) completer.complete();
+      });
+      await completer.future;
+    } catch (_) {}
+  }
+
+  Future<bool> isPrivacyOptionsRequired() async {
+    if (kIsWeb) return false;
+    try {
+      final status = await ConsentInformation.instance.getPrivacyOptionsRequirementStatus();
+      return status == PrivacyOptionsRequirementStatus.required;
+    } catch (_) {
+      return false;
+    }
   }
 
   // ─── Rewarded ────────────────────────────────────────────────
