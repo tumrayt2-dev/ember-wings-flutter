@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/game_character.dart';
 import '../services/locale_service.dart';
+import '../services/score_service.dart';
 import 'ember_wings_game.dart';
 
 String _t(EmberWingsGame game, String key, [Map<String, String>? params]) {
@@ -221,8 +222,16 @@ class _MenuOverlayState extends State<MenuOverlay> {
               const Spacer(),
               // Ters Yer Çekimi toggle
               Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: _ReverseGravityToggle(
+                  game: widget.game,
+                  onChanged: () => setState(() {}),
+                ),
+              ),
+              // Karma Harita toggle
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _KarmaMapToggle(
                   game: widget.game,
                   onChanged: () => setState(() {}),
                 ),
@@ -233,7 +242,7 @@ class _MenuOverlayState extends State<MenuOverlay> {
                 child: GestureDetector(
                   onTap: () {
                     widget.game.audioService.playButton();
-                    widget.game.startGame();
+                    widget.game.startGame(mode: GameMode.klasik);
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 70, vertical: 22),
@@ -276,10 +285,10 @@ class _MenuOverlayState extends State<MenuOverlay> {
                   ),
                 ),
               ),
-              // Challenge butonu (Soon)
+              // Challenge butonu (aktif)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: _ChallengeSoonButton(game: widget.game),
+                child: _ChallengeButton(game: widget.game),
               ),
               // Sıralama butonu
               Padding(
@@ -351,6 +360,9 @@ class GameOverOverlay extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Mod badge
+                _ModeBadge(game: game),
+                const SizedBox(height: 8),
                 Text(
                   _t(game, 'gameOver'),
                   style: const TextStyle(
@@ -378,7 +390,7 @@ class GameOverOverlay extends StatelessWidget {
                   )
                 else
                   Text(
-                    '${_t(game, 'bestScore')}: ${game.scoreService.highScore}',
+                    '${_t(game, game.currentMode == GameMode.challenge ? 'challengeBest' : 'bestScore')}: ${game.scoreService.getHighScore(game.currentMode == GameMode.challenge ? ScoreMode.challenge : ScoreMode.klasik)}',
                     style: TextStyle(fontSize: 15, color: Colors.white.withValues(alpha: 0.7)),
                   ),
                 const SizedBox(height: 16),
@@ -424,7 +436,7 @@ class GameOverOverlay extends StatelessWidget {
                 const SizedBox(height: 4),
                 _FireButton(
                   text: _t(game, 'retry'),
-                  onTap: () => game.startGame(),
+                  onTap: () => game.startGame(mode: game.currentMode),
                 ),
                 const SizedBox(height: 10),
                 GestureDetector(
@@ -995,13 +1007,58 @@ class _BiomeInfo {
   const _BiomeInfo(this.icon, this.label);
 }
 
+// ==================== MOD BADGE ====================
+
+class _ModeBadge extends StatelessWidget {
+  final EmberWingsGame game;
+  const _ModeBadge({required this.game});
+
+  @override
+  Widget build(BuildContext context) {
+    final isChallenge = game.currentMode == GameMode.challenge;
+    final color = isChallenge ? const Color(0xFFFF4500) : const Color(0xFFFFD700);
+    final label = _t(game, isChallenge ? 'challengeBadge' : 'classicBadge');
+    final icon = isChallenge ? Icons.local_fire_department : Icons.star;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 14),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              color: color,
+              letterSpacing: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ==================== CHALLENGE MODE (SOON) ====================
 
-class _ChallengeSoonButton extends StatelessWidget {
+class _ChallengeButton extends StatelessWidget {
   final EmberWingsGame game;
-  const _ChallengeSoonButton({required this.game});
+  const _ChallengeButton({required this.game});
 
-  void _showTeaser(BuildContext context) {
+  void _start() {
+    game.audioService.playButton();
+    game.startGame(mode: GameMode.challenge);
+  }
+
+  void _showInfo(BuildContext context) {
     game.audioService.playButton();
     showDialog(
       context: context,
@@ -1033,22 +1090,6 @@ class _ChallengeSoonButton extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF4500),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      _t(game, 'comingSoon'),
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
                 ],
               ),
               const SizedBox(height: 14),
@@ -1061,53 +1102,56 @@ class _ChallengeSoonButton extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              _ChallengeFeatureRow(icon: Icons.public,         text: _t(game, 'challengeFeature1')),
+              _ChallengeFeatureRow(icon: Icons.public,       text: _t(game, 'challengeFeature1')),
               const SizedBox(height: 8),
-              _ChallengeFeatureRow(icon: Icons.swap_vert,      text: _t(game, 'challengeFeature2')),
+              _ChallengeFeatureRow(icon: Icons.swap_vert,    text: _t(game, 'challengeFeature2')),
               const SizedBox(height: 8),
-              _ChallengeFeatureRow(icon: Icons.emoji_events,   text: _t(game, 'challengeFeature3')),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0x33FF4500),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFFF4500).withValues(alpha: 0.5)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.update, color: Color(0xFFFF8C00), size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _t(game, 'challengeFooter'),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+              _ChallengeFeatureRow(icon: Icons.emoji_events, text: _t(game, 'challengeFeature3')),
+              const SizedBox(height: 18),
+              Center(
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _start();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF6B00), Color(0xFFFF3000)],
                       ),
+                      borderRadius: BorderRadius.circular(22),
                     ),
-                  ],
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.play_arrow, color: Colors.white, size: 22),
+                        const SizedBox(width: 6),
+                        Text(
+                          _t(game, 'start'),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 2,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               Center(
                 child: GestureDetector(
                   onTap: () => Navigator.of(ctx).pop(),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0x44FF4500),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFFF4500)),
-                    ),
-                    child: const Text(
-                      'OK',
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Text(
+                      'İptal',
                       style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 13,
                       ),
                     ),
                   ),
@@ -1123,46 +1167,66 @@ class _ChallengeSoonButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _showTeaser(context),
+      onTap: _start,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         decoration: BoxDecoration(
-          // Locked feel: koyu zemin + minimal glow
-          color: Colors.black.withValues(alpha: 0.45),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFFF4500), Color(0xFF8B0000)],
+          ),
           borderRadius: BorderRadius.circular(28),
           border: Border.all(
-            color: const Color(0xFFFF4500).withValues(alpha: 0.55),
+            color: Colors.white.withValues(alpha: 0.3),
             width: 1.5,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFF4500).withValues(alpha: 0.4),
+              blurRadius: 14,
+              spreadRadius: 1,
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.local_fire_department, color: Color(0xFFFF6B00), size: 20),
+            const Icon(Icons.local_fire_department, color: Colors.white, size: 22),
             const SizedBox(width: 8),
             Text(
               _t(game, 'challenge'),
-              style: TextStyle(
-                fontSize: 16,
+              style: const TextStyle(
+                fontSize: 17,
                 fontWeight: FontWeight.w900,
-                color: Colors.white.withValues(alpha: 0.85),
-                letterSpacing: 2,
+                color: Colors.white,
+                letterSpacing: 2.5,
+                shadows: [Shadow(color: Color(0xAA000000), blurRadius: 4)],
               ),
             ),
             const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF4500),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                _t(game, 'comingSoon'),
-                style: const TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  letterSpacing: 1,
+            GestureDetector(
+              onTap: () => _showInfo(context),
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.4),
+                    width: 1,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: const Text(
+                  '?',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    height: 1,
+                  ),
                 ),
               ),
             ),
@@ -1395,6 +1459,226 @@ class _ReverseGravityToggleState extends State<_ReverseGravityToggle> {
           ),
           const SizedBox(width: 6),
           // Info button
+          GestureDetector(
+            onTap: _showInfo,
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '?',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white.withValues(alpha: 0.85),
+                  height: 1,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== KARMA HARITA TOGGLE ====================
+
+class _KarmaMapToggle extends StatefulWidget {
+  final EmberWingsGame game;
+  final VoidCallback onChanged;
+  const _KarmaMapToggle({required this.game, required this.onChanged});
+
+  @override
+  State<_KarmaMapToggle> createState() => _KarmaMapToggleState();
+}
+
+class _KarmaMapToggleState extends State<_KarmaMapToggle> {
+  late bool _enabled;
+  static const Color _accent = Color(0xFFB388FF); // mor
+
+  @override
+  void initState() {
+    super.initState();
+    _enabled = widget.game.characterService.getKarmaMapEnabled();
+  }
+
+  void _toggle() {
+    setState(() => _enabled = !_enabled);
+    widget.game.characterService.setKarmaMapEnabled(_enabled);
+    widget.game.audioService.playButton();
+    widget.onChanged();
+  }
+
+  void _showInfo() {
+    widget.game.audioService.playButton();
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => Dialog(
+        backgroundColor: const Color(0xFF1a1a2e),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: _accent, width: 1.5),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.public, color: _accent, size: 30),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _t(widget.game, 'karmaMap'),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _t(widget.game, 'karmaMapDesc'),
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.4,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                height: 1,
+                color: _accent.withValues(alpha: 0.3),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _t(widget.game, 'howToPlay').toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: _accent,
+                  letterSpacing: 1.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _t(widget.game, 'karmaHowTo'),
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.5,
+                  color: Colors.white.withValues(alpha: 0.8),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Center(
+                child: GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: _accent.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _accent),
+                    ),
+                    child: const Text(
+                      'OK',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: 240,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: _enabled
+            ? _accent.withValues(alpha: 0.2)
+            : const Color(0x33000000),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: _enabled ? _accent : Colors.white.withValues(alpha: 0.2),
+          width: 1.2,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.public,
+            color: _enabled ? _accent : Colors.white.withValues(alpha: 0.5),
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: GestureDetector(
+              onTap: _toggle,
+              child: Text(
+                _t(widget.game, 'karmaMap'),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: _enabled
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.75),
+                ),
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: _toggle,
+            child: Container(
+              width: 36,
+              height: 20,
+              decoration: BoxDecoration(
+                color: _enabled ? _accent : Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                alignment: _enabled ? Alignment.centerRight : Alignment.centerLeft,
+                child: Container(
+                  margin: const EdgeInsets.all(2),
+                  width: 16,
+                  height: 16,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
           GestureDetector(
             onTap: _showInfo,
             child: Container(

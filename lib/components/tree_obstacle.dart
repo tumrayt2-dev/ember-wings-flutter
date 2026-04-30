@@ -10,6 +10,9 @@ class TreeObstacle extends PositionComponent with CollisionCallbacks, HasGameRef
   final bool isTop;
   final double treeHeight;
   final int variant;
+  // Bu ağacın spawn olduğu biyom — yaşam boyu sabit
+  final String biomeName;
+  final BiomeColors biomeColors;
   late List<_EmberSpot> _embers;
   late List<_BarkLine> _barkLines;
 
@@ -48,6 +51,8 @@ class TreeObstacle extends PositionComponent with CollisionCallbacks, HasGameRef
     required this.treeHeight,
     required double x,
     required this.variant,
+    required this.biomeName,
+    required this.biomeColors,
   }) : super(
     position: Vector2(x, isTop ? 0 : GameConfig.gameHeight - GameConfig.groundHeight - treeHeight),
     size: Vector2(GameConfig.treeWidth, treeHeight),
@@ -83,7 +88,7 @@ class TreeObstacle extends PositionComponent with CollisionCallbacks, HasGameRef
   @override
   Future<void> onLoad() async {
     _precomputeShapes();
-    if (game.activeBiomeName == 'ice') {
+    if (biomeName == 'ice') {
       add(PolygonHitbox(_iceVertices()));
     } else {
       add(RectangleHitbox());
@@ -197,15 +202,15 @@ class TreeObstacle extends PositionComponent with CollisionCallbacks, HasGameRef
   @override
   void render(Canvas canvas) {
     super.render(canvas);
-    final biome = game.activeBiome;
-    _updateBiomeCache(biome);
+    // Bu ağaç spawn anındaki biyomunu kullanır — karma modda bile kendi görüntüsünü korur
+    _updateBiomeCache(biomeColors);
 
-    switch (game.activeBiomeName) {
-      case 'water': _renderWater(canvas, biome); break;
-      case 'ice':   _renderIce(canvas, biome);   break;
-      case 'night': _renderNight(canvas, biome); break;
+    switch (biomeName) {
+      case 'water': _renderWater(canvas, biomeColors); break;
+      case 'ice':   _renderIce(canvas, biomeColors);   break;
+      case 'night': _renderNight(canvas, biomeColors); break;
       case 'fire':
-      default:      _renderFire(canvas, biome);
+      default:      _renderFire(canvas, biomeColors);
     }
 
     _edgeGlowPaint.color = _cachedGlowColor015!;
@@ -281,9 +286,16 @@ class TreePair extends Component with HasWorldReference {
   bool scored = false;
   final double gapCenter;
   final double x;
+  final String biomeName;
+  final BiomeColors biomeColors;
   final List<TreeObstacle> obstacles = [];
 
-  TreePair({required this.gapCenter, required this.x});
+  TreePair({
+    required this.gapCenter,
+    required this.x,
+    required this.biomeName,
+    required this.biomeColors,
+  });
 
   @override
   Future<void> onLoad() async {
@@ -293,12 +305,26 @@ class TreePair extends Component with HasWorldReference {
     final variant = rng.nextInt(2);
 
     if (topHeight > 0) {
-      final top = TreeObstacle(isTop: true, treeHeight: topHeight, x: x, variant: variant);
+      final top = TreeObstacle(
+        isTop: true,
+        treeHeight: topHeight,
+        x: x,
+        variant: variant,
+        biomeName: biomeName,
+        biomeColors: biomeColors,
+      );
       obstacles.add(top);
       world.add(top);
     }
     if (bottomHeight > 0) {
-      final bottom = TreeObstacle(isTop: false, treeHeight: bottomHeight, x: x, variant: variant);
+      final bottom = TreeObstacle(
+        isTop: false,
+        treeHeight: bottomHeight,
+        x: x,
+        variant: variant,
+        biomeName: biomeName,
+        biomeColors: biomeColors,
+      );
       obstacles.add(bottom);
       world.add(bottom);
     }

@@ -4,6 +4,7 @@ import '../models/game_character.dart';
 class CharacterService {
   static const _selectedKey = 'selected_character';
   static const _reverseGravityKey = 'reverse_gravity_enabled';
+  static const _karmaMapKey = 'karma_map_enabled';
   late SharedPreferences _prefs;
 
   Future<void> init() async {
@@ -29,5 +30,13 @@ class CharacterService {
 
   Future<void> setReverseGravityEnabled(bool enabled) async {
     await _prefs.setBool(_reverseGravityKey, enabled);
+  }
+
+  bool getKarmaMapEnabled() {
+    return _prefs.getBool(_karmaMapKey) ?? false;
+  }
+
+  Future<void> setKarmaMapEnabled(bool enabled) async {
+    await _prefs.setBool(_karmaMapKey, enabled);
   }
 }

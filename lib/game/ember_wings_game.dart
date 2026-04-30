@@ -21,6 +21,8 @@ import '../services/locale_service.dart';
 
 enum GameState { menu, playing, paused, gameOver, waitingContinue }
 
+enum GameMode { klasik, challenge }
+
 class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection {
   late Bird bird;
   late Ground ground;
@@ -73,6 +75,14 @@ class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection 
   // Uyarı bildirici — UI bunu dinler
   final ValueNotifier<int> flipWarningSession = ValueNotifier(0);
   bool _wasFlipWarning = false;
+
+  // Mod sistemi
+  GameMode currentMode = GameMode.klasik;
+
+  // Karma harita sistemi
+  bool karmaMapEnabled = false;          // klasik modda kullanıcı tercihi
+  static const int _biomeChangeInterval = 12; // her 12 ağaçta bir biyom değişir
+  int _scoresSinceBiomeChange = 0;
 
   @override
   Future<void> onLoad() async {
@@ -214,7 +224,14 @@ class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection 
     final gapCenter = lo + _random.nextDouble() * (hi - lo);
     _lastGapCenter = gapCenter;
 
-    final pair = TreePair(gapCenter: gapCenter, x: x);
+    // Her ağaç şu anki biyom bilgisiyle spawn edilir — karma modda biyom değişse bile
+    // mevcut ağaçlar görüntüsünü korur, yeni ağaçlar yeni biyomda gelir.
+    final pair = TreePair(
+      gapCenter: gapCenter,
+      x: x,
+      biomeName: activeBiomeName,
+      biomeColors: activeBiome,
+    );
     _activeTreePairs.add(pair);
     world.add(pair);
   }
@@ -228,12 +245,32 @@ class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection 
         scoreDisplay.increment();
         if (_scoreSoundCooldown <= 0) {
           audioService.playScore();
-          _scoreSoundCooldown = 0.12; // 120ms — üst üste birden fazla ağaç geçerse tekrar etmez
+          _scoreSoundCooldown = 0.12;
+        }
+        // Karma harita: belirli sayıda ağaç sonra biyom değişir
+        if (karmaMapEnabled) {
+          _scoresSinceBiomeChange++;
+          if (_scoresSinceBiomeChange >= _biomeChangeInterval) {
+            _scoresSinceBiomeChange = 0;
+            _changeToRandomBiome();
+          }
         }
         return true;
       }
       return false;
     });
+  }
+
+  void _changeToRandomBiome() {
+    // Mevcut biyomdan farklı bir biyom seç
+    final candidates = GameCharacter.all
+        .where((c) => c.biome != activeBiomeName)
+        .toList();
+    if (candidates.isEmpty) return;
+    final picked = candidates[_random.nextInt(candidates.length)];
+    activeBiome = picked.biomeColors;
+    activeBiomeName = picked.biome;
+    biomeFlashTime = biomeFlashDuration;
   }
 
   void pauseGame() {
@@ -307,20 +344,24 @@ class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection 
     if (!overlays.isActive('hud')) overlays.add('hud');
   }
 
+  ScoreMode get _scoreMode =>
+      currentMode == GameMode.challenge ? ScoreMode.challenge : ScoreMode.klasik;
+
   void _gameOver() async {
     if (state != GameState.playing) return;
     state = GameState.gameOver;
     bird.isDead = true;
     bird.isActive = false;
     audioService.playHit();
-    isNewHighScore = await scoreService.submitScore(scoreDisplay.score);
-    leaderboardService.submitScore(scoreDisplay.score);
+    isNewHighScore = await scoreService.submitScore(scoreDisplay.score, mode: _scoreMode);
+    leaderboardService.submitScore(scoreDisplay.score, mode: _scoreMode);
     analyticsService.logGameOver(scoreDisplay.score, isNewHighScore, _activeCharacterId.name);
     overlays.remove('hud');
     overlays.add('gameOver');
   }
 
-  void startGame() {
+  void startGame({GameMode mode = GameMode.klasik}) {
+    currentMode = mode;
     _activeCharacterId = characterService.getSelectedCharacter();
     final character = GameCharacter.getById(_activeCharacterId);
 
@@ -349,14 +390,24 @@ class EmberWingsGame extends FlameGame with TapCallbacks, HasCollisionDetection 
     _treeSpawnTimer = currentSpawnInterval - 0.3;
     _scoreSoundCooldown = 0;
 
+    // Mod ayarları — Challenge'da hepsi zorla aktif, Klasik'te kullanıcı tercihleri
+    if (mode == GameMode.challenge) {
+      reverseGravityEnabled = true;
+      karmaMapEnabled = true;
+    } else {
+      reverseGravityEnabled = characterService.getReverseGravityEnabled();
+      karmaMapEnabled = characterService.getKarmaMapEnabled();
+    }
+
     // Ters yer çekimi state reset
-    reverseGravityEnabled = characterService.getReverseGravityEnabled();
     isGravityReversed = false;
     _wasFlipWarning = false;
     _postFlipNoSpawnTimer = 0;
-    flipWarningSession.value = 0; // önceki oyundan kalan uyarıyı sıfırla
-    // İlk flip için "normal modda kalma süresi" — yeni başlayan oyuncu rahat olsun
+    flipWarningSession.value = 0;
     _gravityFlipTimer = reverseGravityEnabled ? _nextFlipInterval() : 0;
+
+    // Karma harita state reset
+    _scoresSinceBiomeChange = 0;
   }
 
   @override

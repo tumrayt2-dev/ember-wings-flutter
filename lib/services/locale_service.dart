@@ -75,7 +75,7 @@ class LocaleService extends ChangeNotifier {
       'howToPlay':            'Nasıl Oynanır',
       'reverseHowTo':         'Oyun normal başlar (dokun → yüksel). 30-45 saniyede bir 3 saniyelik uyarıdan sonra yer çekimi 15-20 saniyeliğine tersine döner. Ters modda dokun → aşağı it. Geçişte ekran kısa süre boş kalır.',
 
-      // Challenge mod (yakında)
+      // Challenge mod
       'challenge':         'CHALLENGE',
       'comingSoon':        'YAKINDA',
       'challengeTitle':    'Challenge Mod',
@@ -84,6 +84,14 @@ class LocaleService extends ChangeNotifier {
       'challengeFeature2': 'Ters yer çekimi: sürekli devrede',
       'challengeFeature3': 'Ayrı liderlik tablosu: zorluk şampiyonları',
       'challengeFooter':   'Bir sonraki güncellemede geliyor!',
+      'challengeBest':     'Challenge En İyi',
+      'challengeBadge':    'CHALLENGE',
+      'classicBadge':      'KLASİK',
+
+      // Karma harita
+      'karmaMap':          'Karma Harita',
+      'karmaMapDesc':      'Oyun sırasında biyom rastgele değişir',
+      'karmaHowTo':        'Her 12 ağaç geçişinde biyom rastgele başka bir biyoma değişir. Mevcut ağaçlar görüntüsünü korur, yeni ağaçlar yeni biyomda gelir.',
 
       // Karakter açıklamaları
       'desc_phoenix':    'Ateş kuşu — yanan ormandan kaçar',
@@ -155,7 +163,7 @@ class LocaleService extends ChangeNotifier {
       'howToPlay':            'How to Play',
       'reverseHowTo':         'The game starts normal (tap → fly up). Every 30-45 seconds, after a 3-second warning, gravity flips for 15-20 seconds. In reverse mode, tap → push down. The screen briefly clears during transitions.',
 
-      // Challenge mode (coming soon)
+      // Challenge mode
       'challenge':         'CHALLENGE',
       'comingSoon':        'COMING SOON',
       'challengeTitle':    'Challenge Mode',
@@ -164,6 +172,14 @@ class LocaleService extends ChangeNotifier {
       'challengeFeature2': 'Reverse gravity: always active',
       'challengeFeature3': 'Separate leaderboard: difficulty champions',
       'challengeFooter':   'Coming in the next update!',
+      'challengeBest':     'Challenge Best',
+      'challengeBadge':    'CHALLENGE',
+      'classicBadge':      'CLASSIC',
+
+      // Karma map
+      'karmaMap':          'Mixed Map',
+      'karmaMapDesc':      'Biomes change randomly during the run',
+      'karmaHowTo':        'Every 12 obstacles, the biome randomly switches to another. Existing trees keep their look, new trees spawn in the new biome.',
 
       // Character descriptions
       'desc_phoenix':    'Fire bird — escapes the burning forest',
